@@ -23,18 +23,13 @@
   }
 }
 
-/* Custom scrollbar for webkit */
+/* Tối ưu cảm giác chạm cho App Mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ẩn thanh cuộn (scrollbar) để giao diện vuốt giống app */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: rgba(0, 87, 190, 0.2);
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 87, 190, 0.4);
+  width: 0px;
+  background: transparent; 
 }
