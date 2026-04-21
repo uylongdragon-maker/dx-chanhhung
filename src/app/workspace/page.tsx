@@ -3,15 +3,25 @@ import Link from "next/link";
 import CreateTaskForm from "@/components/CreateTaskForm";
 import AIChatBox from "@/components/AIChatBox";
 import KanbanBoard from "@/components/KanbanBoard";
+import MeetingPoll from "@/components/MeetingPoll";
+import { createClient } from "@/utils/supabase/server";
 
 export default async function WorkspaceDashboard() {
+  const supabase = await createClient();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+
   // Bơm dữ liệu từ Database theo yêu cầu định vị hệ thống
-  const [totalTasks, doingTasks, membersCount, allTasks, users] = await Promise.all([
+  const [totalTasks, doingTasks, membersCount, allTasks, users, latestPoll] = await Promise.all([
     prisma.task.count(),
     prisma.task.count({ where: { status: "DOING" } }),
     prisma.user.count(),
-    prisma.task.findMany({ include: { assignee: true }, orderBy: { id: "desc" } }),
-    prisma.user.findMany()
+    prisma.task.findMany({ include: { assignee: true }, orderBy: { order: "asc" } }),
+    prisma.user.findMany(),
+    prisma.poll.findFirst({
+      where: { status: "OPEN" },
+      orderBy: { createdAt: "desc" },
+      include: { votes: true }
+    })
   ]);
   
   // Lấy tóm tắt từ cuộc họp gần nhất
@@ -98,12 +108,17 @@ export default async function WorkspaceDashboard() {
           </div>
         </div>
 
-        {/* CỘT PHẢI: AI CHAT (Chiếm 1/3 chiều rộng) */}
-        <div className="flex-1 flex flex-col gap-4">
-           <div className="flex items-center px-2">
-             <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Thảo luận AI</h3>
+        {/* CỘT PHẢI: BIỂU QUYẾT & AI CHAT (Chiếm 1/3 chiều rộng) */}
+        <div className="flex-1 flex flex-col gap-8">
+           {/* Biểu quyết họp */}
+           <MeetingPoll poll={latestPoll} userId={authUser?.id || ""} />
+
+           <div className="flex flex-col gap-4">
+             <div className="flex items-center px-2">
+               <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tighter">Thảo luận AI</h3>
+             </div>
+             <AIChatBox />
            </div>
-           <AIChatBox />
         </div>
       </div>
 

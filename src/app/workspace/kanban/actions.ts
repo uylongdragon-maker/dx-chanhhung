@@ -56,3 +56,35 @@ export async function createTask(formData: FormData) {
     return { success: false, error: error.message };
   }
 }
+
+export async function updateTaskStatusAndOrder(taskId: string, newStatus: string, newIndex: number) {
+  try {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) return { success: false, error: "Task not found" };
+
+    // Lấy toàn bộ thẻ trong cột đích (trừ thẻ hiện tại nếu nó đã ở đó)
+    const otherTasks = await prisma.task.findMany({
+      where: { status: newStatus, id: { not: taskId } },
+      orderBy: { order: 'asc' }
+    });
+
+    // Chèn thẻ hiện tại vào vị trí index mới trong mảng
+    otherTasks.splice(newIndex, 0, task);
+
+    // Cập nhật lại toàn bộ thứ tự (order) và trạng thái trong 1 transaction an toàn
+    const updates = otherTasks.map((t, idx) => 
+      prisma.task.update({
+        where: { id: t.id },
+        data: { status: newStatus, order: idx }
+      })
+    );
+    await prisma.$transaction(updates);
+
+    revalidatePath("/workspace/kanban");
+    revalidatePath("/workspace"); 
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to reorder task:", error);
+    return { success: false, error: error.message };
+  }
+}
