@@ -124,6 +124,7 @@ export default function Sidebar({ user }: { user: any }) {
             </button>
           </form>
         </div>
+      </nav>
     </>
   );
 }
