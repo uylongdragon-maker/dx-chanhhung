@@ -21,7 +21,7 @@ async function test() {
       console.log(`Status: ${response.status} ${response.statusText}`);
       const data = await response.json();
       console.log("Response:", JSON.stringify(data, null, 2));
-    } catch (err) {
+    } catch (err: any) {
       console.log(`FAILED: ${err.message}`);
     }
   }

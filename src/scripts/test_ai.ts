@@ -19,7 +19,7 @@ async function test() {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent("Hi");
     console.log("Success with default!");
-  } catch (err) {
+  } catch (err: any) {
     console.log("ListModels/Testing failed: " + err.message);
   }
 }

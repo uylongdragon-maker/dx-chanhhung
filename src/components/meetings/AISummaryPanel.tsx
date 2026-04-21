@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { summarizeAndAssign } from "@/app/actions/meeting";
-import { Sparkles, History, Bot, BookOpen, ChevronRight, Loader2, BrainCircuit, Activity } from "lucide-react";
+import { Sparkles, History, Bot, BookOpen, ChevronRight, Loader2, BrainCircuit, Activity, Calendar } from "lucide-react";
 
 export default function AISummaryPanel({ initialMeetings }: { initialMeetings: any[] }) {
   const [meetings, setMeetings] = useState(initialMeetings);
