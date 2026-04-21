@@ -1,4 +1,5 @@
 import Sidebar from "@/components/Sidebar";
+import BottomNav from "@/components/BottomNav";
 import { createClient } from "@/utils/supabase/server";
 import { syncUser } from "@/utils/sync-user";
 
@@ -47,11 +48,14 @@ export default async function WorkspaceLayout({
           </div>
         </header>
 
-        {/* Scrollable Content Canvas provided by page.tsx */}
-        <div className="flex-1 overflow-y-auto pt-24 pb-20 md:pb-8 px-4 sm:px-8 lg:px-12 w-full max-w-7xl mx-auto">
+        {/* Scrollable Content Canvas — extra bottom padding on mobile for BottomNav */}
+        <div className="flex-1 overflow-y-auto pt-24 pb-28 md:pb-8 px-4 sm:px-8 lg:px-12 w-full max-w-7xl mx-auto">
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <BottomNav user={currentUser || supabaseUser} />
     </div>
   );
 }
