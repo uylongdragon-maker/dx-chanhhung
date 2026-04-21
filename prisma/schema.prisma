@@ -151,4 +151,6 @@ model Vote {
   poll      Poll   @relation(fields: [pollId], references: [id])
   userId    String
   optionIdx Int    // Vị trí option được chọn
+  
+  @@unique([pollId, userId])
 }
