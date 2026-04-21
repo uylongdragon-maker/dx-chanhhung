@@ -5,6 +5,8 @@ import { MoreHorizontal, Plus, CheckCircle2, Circle, Clock, Loader2, GripVertica
 import { useState, useTransition, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
+import InlineCreateCard from "./InlineCreateCard";
+
 export default function KanbanBoard({ 
   tasks: inputTasks = [],
   users = []
@@ -180,6 +182,7 @@ export default function KanbanBoard({
                       </Draggable>
                     ))}
                     {provided.placeholder}
+                    <InlineCreateCard status={col.status} />
                   </div>
                 )}
               </Droppable>

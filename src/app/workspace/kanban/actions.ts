@@ -88,3 +88,33 @@ export async function updateTaskStatusAndOrder(taskId: string, newStatus: string
     return { success: false, error: error.message };
   }
 }
+
+export async function createInlineTask(title: string, status: string) {
+  if (!title.trim()) return { success: false };
+
+  try {
+    // Tìm Pool chung của đội
+    let pool = await prisma.pool.findFirst();
+    if (!pool) {
+      pool = await prisma.pool.create({ data: { name: "Ban Truyền thông Chánh Hưng" } });
+    }
+
+    // Tạo thẻ và gán đúng trạng thái của cột đó
+    await prisma.task.create({
+      data: {
+        title: title,
+        status: status, // Nằm ở cột nào thì status là cột đó
+        priority: 'MEDIUM',
+        poolId: pool.id,
+        order: 0 // Đẩy lên đầu
+      }
+    });
+
+    revalidatePath('/workspace/kanban');
+    revalidatePath('/workspace');
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to create inline task:", error);
+    return { success: false };
+  }
+}
