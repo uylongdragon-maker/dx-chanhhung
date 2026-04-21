@@ -56,7 +56,10 @@ export default async function MeetingsPage() {
         </div>
 
         {isAdmin && (
-          <form action={aiAutoApprove}>
+          <form action={async (formData) => {
+            'use server'
+            await aiAutoApprove();
+          }}>
             <button type="submit" className="group relative overflow-hidden flex items-center gap-3 bg-gradient-to-br from-indigo-600 to-purple-700 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all">
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
               <BrainCircuit size={16} className="relative z-10" /> 
