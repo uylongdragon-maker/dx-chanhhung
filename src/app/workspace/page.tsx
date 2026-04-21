@@ -15,7 +15,14 @@ export default async function WorkspaceDashboard() {
     prisma.task.count(),
     prisma.task.count({ where: { status: "DOING" } }),
     prisma.user.count(),
-    prisma.task.findMany({ include: { assignee: true }, orderBy: { order: "asc" } }),
+    prisma.task.findMany({ 
+      include: { 
+        assignee: true,
+        checklists: { include: { items: true } },
+        activities: { include: { user: true }, orderBy: { createdAt: 'desc' } }
+      }, 
+      orderBy: { order: "asc" } 
+    }),
     prisma.user.findMany(),
     prisma.poll.findFirst({
       where: { status: "OPEN" },
@@ -104,14 +111,14 @@ export default async function WorkspaceDashboard() {
             </Link>
           </div>
           <div className="glass-panel rounded-[2.5rem] p-4 shadow-xl border border-white/80 bg-white/20">
-            <KanbanBoard tasks={allTasks} users={users} />
+            <KanbanBoard tasks={allTasks} users={users} currentUser={authUser} />
           </div>
         </div>
 
         {/* CỘT PHẢI: BIỂU QUYẾT & AI CHAT (Chiếm 1/3 chiều rộng) */}
         <div className="flex-1 flex flex-col gap-8">
            {/* Biểu quyết họp */}
-           <MeetingPoll poll={latestPoll} userId={authUser?.id || ""} />
+           <MeetingPoll poll={latestPoll} userId={authUser?.id || ""} allUsers={users} />
 
            <div className="flex flex-col gap-4">
              <div className="flex items-center px-2">

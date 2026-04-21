@@ -21,12 +21,12 @@ model Pool {
 
 // 2. Bảng quản lý thành viên
 model User {
-  id        String    @id // Mã ID liên kết với Supabase Auth
+  id        String    @id // Supabase Auth UID
   email     String    @unique
   name      String?
   avatarUrl String?
   unit      String?   // Đơn vị (VD: Bí thư chi Đoàn KP29)
-  role      String?   // Nhiệm vụ/Luồng (VD: Nội dung, Quay- dựng)
+  role      String    @default("MEMBER") // ADMIN, EDITOR, MEMBER
   poolId    String
   pool      Pool      @relation(fields: [poolId], references: [id])
   tasks     Task[]    @relation("TaskAssignee")
@@ -34,20 +34,59 @@ model User {
   posts     Post[]    @relation("UserPosts")
   media     Media[]   @relation("UserMedia")
   meetingRequests MeetingRequest[] @relation("UserMeetingRequests")
+  activities Activity[] @relation("UserActivities")
+  votes     Vote[]     @relation("UserVotes")
 }
 
-// 3. Bảng quản lý thẻ việc Kanban
+// 3. Bảng quản lý thẻ việc Kanban (Trello Card Style)
 model Task {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
-  status      String   @default("TODO")
-  order       Int      @default(0) // Thêm dòng này để sắp xếp kéo thả
-  priority    String   @default("MEDIUM")
-  description String?
+  description String?     @db.Text
+  status      String      @default("TODO")
+  order       Int         @default(0) // Dùng để sắp xếp thẻ (kéo thả)
+  priority    String      @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  dueDate     DateTime?
+  
+  // Tài liệu đính kèm (Lưu link từ Supabase Storage)
+  attachments String[]    
+
   poolId      String
-  pool        Pool     @relation(fields: [poolId], references: [id])
+  pool        Pool        @relation(fields: [poolId], references: [id])
   assigneeId  String?
-  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignee    User?       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  
+  checklists  Checklist[]
+  activities  Activity[]  @relation("TaskActivities")
+}
+
+model Checklist {
+  id          String          @id @default(cuid())
+  title       String
+  taskId      String
+  task        Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items       ChecklistItem[]
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  text        String
+  isCompleted Boolean   @default(false)
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  type      String   // 'MOVED', 'COMMENT', 'CREATED', 'COMPLETED'
+  text      String
+  createdAt DateTime @default(now())
+  
+  userId    String
+  user      User     @relation("UserActivities", fields: [userId], references: [id])
+  
+  taskId    String
+  task      Task     @relation("TaskActivities", fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 // 4. Bảng quản lý tin nhắn Chat nội bộ
@@ -135,14 +174,15 @@ model SystemConfig {
   value String
 }
 
-// 11. Bảng Biểu quyết (Voting)
+// 11. Bảng Biểu quyết (VOTING) cho Đội hình
 model Poll {
   id          String   @id @default(cuid())
   question    String
-  options     Json     // Lưu mảng các lựa chọn: ["Đồng ý", "Không đồng ý",...]
-  votes       Vote[]
-  createdAt   DateTime @default(now())
+  options     Json     // Lưu mảng các lựa chọn: ["Option A", "Option B",...]
+  dueDate     DateTime?
   status      String   @default("OPEN") // OPEN, CLOSED
+  createdAt   DateTime @default(now())
+  votes       Vote[]
 }
 
 model Vote {
@@ -150,6 +190,7 @@ model Vote {
   pollId    String
   poll      Poll   @relation(fields: [pollId], references: [id])
   userId    String
+  user      User   @relation("UserVotes", fields: [userId], references: [id])
   optionIdx Int    // Vị trí option được chọn
   
   @@unique([pollId, userId])

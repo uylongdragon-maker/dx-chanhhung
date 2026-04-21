@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 
 export async function castVote(pollId: string, userId: string, optionIdx: number) {
   try {
-    // Upsert dựa trên khóa phức hợp (composite key) pollId_userId mà chúng ta vừa cấu hình trong schema
+    // Upsert dựa trên khóa phức hợp (composite key) pollId_userId
     await prisma.vote.upsert({
       where: { 
         pollId_userId: {
@@ -14,7 +14,11 @@ export async function castVote(pollId: string, userId: string, optionIdx: number
         }
       },
       update: { optionIdx },
-      create: { pollId, userId, optionIdx }
+      create: { 
+        pollId, 
+        userId, // userId này phải tồn tại trong bảng User
+        optionIdx 
+      }
     });
     
     revalidatePath('/workspace');
