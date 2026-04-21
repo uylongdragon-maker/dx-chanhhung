@@ -8,8 +8,22 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Chánh Hưng CMS",
-  description: "Trang quản trị nội bộ Ban Truyền thông CĐS Chánh Hưng",
+  title: 'Tuổi Trẻ Số Chánh Hưng',
+  description: 'Trạm hành dinh số của Ban Truyền thông Chánh Hưng',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'DX Chánh Hưng',
+  },
+};
+
+export const viewport = {
+  themeColor: '#3b82f6',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
