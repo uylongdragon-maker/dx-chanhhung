@@ -41,6 +41,7 @@ model Task {
   id          String   @id @default(cuid())
   title       String
   status      String   @default("TODO")
+  order       Int      @default(0) // Thêm dòng này để sắp xếp kéo thả
   priority    String   @default("MEDIUM")
   description String?
   poolId      String
@@ -132,4 +133,22 @@ model MeetingRequest {
 model SystemConfig {
   key   String @id
   value String
+}
+
+// 11. Bảng Biểu quyết (Voting)
+model Poll {
+  id          String   @id @default(cuid())
+  question    String
+  options     Json     // Lưu mảng các lựa chọn: ["Đồng ý", "Không đồng ý",...]
+  votes       Vote[]
+  createdAt   DateTime @default(now())
+  status      String   @default("OPEN") // OPEN, CLOSED
+}
+
+model Vote {
+  id        String @id @default(cuid())
+  pollId    String
+  poll      Poll   @relation(fields: [pollId], references: [id])
+  userId    String
+  optionIdx Int    // Vị trí option được chọn
 }
