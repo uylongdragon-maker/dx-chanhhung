@@ -124,47 +124,6 @@ export default function Sidebar({ user }: { user: any }) {
             </button>
           </form>
         </div>
-      </nav>
-
-      {/* Mobile Bottom Navigation - FIXED: Showing ALL links with horizontal scroll */}
-      <nav className="md:hidden fixed bottom-6 left-4 right-4 h-20 bg-white/60 dark:bg-slate-950/60 backdrop-blur-3xl border border-white/50 dark:border-slate-800/50 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] z-50 px-4 overflow-hidden">
-        <div className="flex items-center h-full gap-4 overflow-x-auto scrollbar-hide">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-500 ${
-                  isActive ? "bg-blue-600 text-white shadow-xl shadow-blue-500/20 scale-110" : "text-slate-400"
-                }`}
-              >
-                <Icon size={20} />
-              </Link>
-            );
-          })}
-          
-          <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 flex-shrink-0"></div>
-
-          {isAdmin && (
-            <Link
-              href="/workspace/admin"
-              className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-500 ${
-                pathname === "/workspace/admin" ? "bg-amber-500 text-white shadow-xl" : "text-amber-500/40"
-              }`}
-            >
-              <ShieldCheck size={20} />
-            </Link>
-          )}
-
-          <form action={signOut} className="flex flex-shrink-0">
-            <button type="submit" className="w-14 h-14 rounded-2xl text-slate-400 flex items-center justify-center">
-              <LogOut size={20} />
-            </button>
-          </form>
-        </div>
-      </nav>
     </>
   );
 }
