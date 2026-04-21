@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- BẢN VẼ CẤU TRÚC DỮ LIỆU ---
+
+// 1. Bảng không gian làm việc chung
+model Pool {
+  id        String    @id @default(cuid())
+  name      String    @default("Ban Truyền thông Chánh Hưng")
+  members   User[]
+  tasks     Task[]
+  messages  Message[] 
+}
+
+// 2. Bảng quản lý thành viên
+model User {
+  id        String    @id // Mã ID liên kết với Supabase Auth
+  email     String    @unique
+  name      String?
+  avatarUrl String?
+  unit      String?   // Đơn vị (VD: Bí thư chi Đoàn KP29)
+  role      String?   // Nhiệm vụ/Luồng (VD: Nội dung, Quay- dựng)
+  poolId    String
+  pool      Pool      @relation(fields: [poolId], references: [id])
+  tasks     Task[]    @relation("TaskAssignee")
+  messages  Message[] @relation("UserMessages")
+  posts     Post[]    @relation("UserPosts")
+  media     Media[]   @relation("UserMedia")
+  meetingRequests MeetingRequest[] @relation("UserMeetingRequests")
+}
+
+// 3. Bảng quản lý thẻ việc Kanban
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  status      String   @default("TODO")
+  priority    String   @default("MEDIUM")
+  description String?
+  poolId      String
+  pool        Pool     @relation(fields: [poolId], references: [id])
+  assigneeId  String?
+  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+}
+
+// 4. Bảng quản lý tin nhắn Chat nội bộ
+model Message {
+  id          String   @id @default(cuid())
+  content     String?  // Nội dung chat hoặc @tag
+  type        String   @default("TEXT") // Phân loại: TEXT, IMAGE, FILE
+  fileUrl     String?  // Link đính kèm nếu có
+  
+  poolId      String
+  pool        Pool     @relation(fields: [poolId], references: [id])
+  
+  senderId    String
+  sender      User     @relation("UserMessages", fields: [senderId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+// 5. Bảng lưu trữ kết quả họp trực tuyến
+model Meeting {
+  id           String   @id @default(cuid())
+  topic        String
+  startTime    DateTime
+  recordingUrl String? 
+  summary      String?  // Nơi lưu kết quả AI tóm tắt
+}
+
+// 6. Bảng Bài viết sẵn sàng xuất bản (Publishing Bridge)
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  content     String?  @db.Text
+  status      String   @default("DRAFT") // DRAFT, PENDING, PUBLISHED
+  mediaUrls   String[] // Mảng link ảnh/video đính kèm
+  
+  authorId    String
+  author      User     @relation("UserPosts", fields: [authorId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 7. Bảng quản lý kho tài nguyên Media Pool
+model Media {
+  id          String   @id @default(cuid())
+  name        String
+  url         String
+  type        String   // IMAGE, VIDEO, DOCUMENT
+  size        String?
+  tag         String?
+  
+  uploaderId  String
+  uploader    User     @relation("UserMedia", fields: [uploaderId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+// 8. Thư viện thông tin (Thông báo, Cẩm nang pháp luật, Quy trình...)
+model LibraryItem {
+  id        String   @id @default(cuid())
+  title     String
+  category  String   // Ví dụ: Kỹ thuật, Pháp luật, Kịch bản
+  content   String   @db.Text
+  fileUrl   String?
+  createdAt DateTime @default(now())
+}
+
+// 9. Đăng ký phòng họp & Duyệt yêu cầu
+model MeetingRequest {
+  id          String   @id @default(cuid())
+  roomName    String
+  purpose     String
+  startTime   DateTime
+  endTime     DateTime
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  requestedBy String
+  user        User     @relation("UserMeetingRequests", fields: [requestedBy], references: [id])
+  isAIApproved Boolean @default(false) // Đánh dấu nếu AI tự duyệt
+  createdAt   DateTime @default(now())
+}
+
+// 10. Cấu hình hệ thống động (Lưu API Key để Admin đổi nhanh)
+model SystemConfig {
+  key   String @id
+  value String
+}
