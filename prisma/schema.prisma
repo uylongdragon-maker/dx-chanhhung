@@ -36,20 +36,26 @@ model User {
   meetingRequests MeetingRequest[] @relation("UserMeetingRequests")
   activities Activity[] @relation("UserActivities")
   votes     Vote[]     @relation("UserVotes")
+  watching  TaskWatcher[] @relation("TaskWatchers")
 }
 
-// 3. Bảng quản lý thẻ việc Kanban (Trello Card Style)
+// 3. Bảng quản lý thẻ việc Kanban (Trello Card Style — v2)
 model Task {
   id          String      @id @default(cuid())
   title       String
   description String?     @db.Text
   status      String      @default("TODO")
-  order       Int         @default(0) // Dùng để sắp xếp thẻ (kéo thả)
+  order       Int         @default(0)
   priority    String      @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   dueDate     DateTime?
-  
-  // Tài liệu đính kèm (Lưu link từ Supabase Storage)
   attachments String[]    
+
+  // Kanban v2 Extensions
+  isPoolItem     Boolean   @default(false)   // Ghim vào Pool chung để nhắc nhở toàn đội
+  reminderAt     DateTime?                   // Thời điểm nhắc nhở
+  estimatedHours Int?                        // Ước tính số giờ thực hiện
+  completedAt    DateTime?                   // Thời điểm hoàn thành thực tế
+  tags           String[]                    // Tags nhanh (text)
 
   poolId      String
   pool        Pool        @relation(fields: [poolId], references: [id])
@@ -58,6 +64,26 @@ model Task {
   
   checklists  Checklist[]
   activities  Activity[]  @relation("TaskActivities")
+  labels      TaskLabel[]
+  watchers    TaskWatcher[]
+}
+
+// Labels màu sắc cho Task
+model TaskLabel {
+  id      String @id @default(cuid())
+  name    String
+  color   String  // Hex color code (e.g. "#ef4444")
+  taskId  String
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// Người theo dõi Task (Watchers)
+model TaskWatcher {
+  taskId  String
+  userId  String
+  task    Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user    User @relation("TaskWatchers", fields: [userId], references: [id])
+  @@id([taskId, userId])
 }
 
 model Checklist {
@@ -78,7 +104,7 @@ model ChecklistItem {
 
 model Activity {
   id        String   @id @default(cuid())
-  type      String   // 'MOVED', 'COMMENT', 'CREATED', 'COMPLETED'
+  type      String   // 'MOVED', 'COMMENT', 'CREATED', 'COMPLETED', 'LABEL_ADDED'
   text      String
   createdAt DateTime @default(now())
   
@@ -92,9 +118,9 @@ model Activity {
 // 4. Bảng quản lý tin nhắn Chat nội bộ
 model Message {
   id          String   @id @default(cuid())
-  content     String?  // Nội dung chat hoặc @tag
-  type        String   @default("TEXT") // Phân loại: TEXT, IMAGE, FILE
-  fileUrl     String?  // Link đính kèm nếu có
+  content     String?
+  type        String   @default("TEXT") // TEXT, IMAGE, FILE
+  fileUrl     String?
   
   poolId      String
   pool        Pool     @relation(fields: [poolId], references: [id])
@@ -105,13 +131,13 @@ model Message {
   createdAt   DateTime @default(now())
 }
 
-// 5. Bảng lưu trữ kết quả họp trực tuyến
+// 5. Lịch họp vật lý (booking phòng họp)
 model Meeting {
   id           String   @id @default(cuid())
   topic        String
   startTime    DateTime
   recordingUrl String? 
-  summary      String?  // Nơi lưu kết quả AI tóm tắt
+  summary      String?  // Biên bản / ghi chú cuộc họp
 }
 
 // 6. Bảng Bài viết sẵn sàng xuất bản (Publishing Bridge)
@@ -120,7 +146,7 @@ model Post {
   title       String
   content     String?  @db.Text
   status      String   @default("DRAFT") // DRAFT, PENDING, PUBLISHED
-  mediaUrls   String[] // Mảng link ảnh/video đính kèm
+  mediaUrls   String[]
   
   authorId    String
   author      User     @relation("UserPosts", fields: [authorId], references: [id])
@@ -144,17 +170,17 @@ model Media {
   createdAt   DateTime @default(now())
 }
 
-// 8. Thư viện thông tin (Thông báo, Cẩm nang pháp luật, Quy trình...)
+// 8. Thư viện thông tin
 model LibraryItem {
   id        String   @id @default(cuid())
   title     String
-  category  String   // Ví dụ: Kỹ thuật, Pháp luật, Kịch bản
+  category  String
   content   String   @db.Text
   fileUrl   String?
   createdAt DateTime @default(now())
 }
 
-// 9. Đăng ký phòng họp & Duyệt yêu cầu
+// 9. Đăng ký phòng họp vật lý
 model MeetingRequest {
   id          String   @id @default(cuid())
   roomName    String
@@ -164,21 +190,21 @@ model MeetingRequest {
   status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
   requestedBy String
   user        User     @relation("UserMeetingRequests", fields: [requestedBy], references: [id])
-  isAIApproved Boolean @default(false) // Đánh dấu nếu AI tự duyệt
+  isAIApproved Boolean @default(false)
   createdAt   DateTime @default(now())
 }
 
-// 10. Cấu hình hệ thống động (Lưu API Key để Admin đổi nhanh)
+// 10. Cấu hình hệ thống động
 model SystemConfig {
   key   String @id
   value String
 }
 
-// 11. Bảng Biểu quyết (VOTING) cho Đội hình
+// 11. Bảng Biểu quyết (VOTING)
 model Poll {
   id          String   @id @default(cuid())
   question    String
-  options     Json     // Lưu mảng các lựa chọn: ["Option A", "Option B",...]
+  options     Json
   dueDate     DateTime?
   status      String   @default("OPEN") // OPEN, CLOSED
   createdAt   DateTime @default(now())
@@ -191,7 +217,7 @@ model Vote {
   poll      Poll   @relation(fields: [pollId], references: [id])
   userId    String
   user      User   @relation("UserVotes", fields: [userId], references: [id])
-  optionIdx Int    // Vị trí option được chọn
+  optionIdx Int
   
   @@unique([pollId, userId])
 }

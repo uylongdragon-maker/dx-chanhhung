@@ -5,15 +5,15 @@ import { revalidatePath } from "next/cache";
 
 export async function updateTaskStatus(taskId: string, newStatus: string) {
   try {
-    await prisma.task.update({
-      where: { id: taskId },
-      data: { status: newStatus },
-    });
+    const data: any = { status: newStatus }
+    if (newStatus === 'DONE') data.completedAt = new Date()
+    else data.completedAt = null
+
+    await prisma.task.update({ where: { id: taskId }, data });
     revalidatePath("/workspace/kanban");
-    revalidatePath("/workspace"); // Tải lại dữ liệu mới nhất trên Dashboard
+    revalidatePath("/workspace");
     return { success: true };
   } catch (error: any) {
-    console.error("Failed to update task status:", error);
     return { success: false, error: error.message };
   }
 }
@@ -29,12 +29,9 @@ export async function createTask(formData: FormData) {
       return { success: false, error: "Tiêu đề không được để trống" };
     }
 
-    // Tìm Không gian làm việc (Pool) của đội, nếu chưa có thì hệ thống tự tạo 1 cái mặc định
     let pool = await prisma.pool.findFirst();
     if (!pool) {
-      pool = await prisma.pool.create({ 
-        data: { name: "Ban Truyền thông Chánh Hưng" } 
-      });
+      pool = await prisma.pool.create({ data: { name: "Ban Truyền thông Chánh Hưng" } });
     }
 
     await prisma.task.create({
@@ -49,10 +46,9 @@ export async function createTask(formData: FormData) {
     });
 
     revalidatePath("/workspace/kanban");
-    revalidatePath("/workspace"); // Ép Next.js tải lại trang Workspace (Dashboard) ngay lập tức
+    revalidatePath("/workspace");
     return { success: true };
   } catch (error: any) {
-    console.error("Failed to create task:", error);
     return { success: false, error: error.message };
   }
 }
@@ -62,59 +58,71 @@ export async function updateTaskStatusAndOrder(taskId: string, newStatus: string
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) return { success: false, error: "Task not found" };
 
-    // Lấy toàn bộ thẻ trong cột đích (trừ thẻ hiện tại nếu nó đã ở đó)
     const otherTasks = await prisma.task.findMany({
       where: { status: newStatus, id: { not: taskId } },
       orderBy: { order: 'asc' }
     });
 
-    // Chèn thẻ hiện tại vào vị trí index mới trong mảng
     otherTasks.splice(newIndex, 0, task);
 
-    // Cập nhật lại toàn bộ thứ tự (order) và trạng thái trong 1 transaction an toàn
-    const updates = otherTasks.map((t, idx) => 
+    const data: any = { status: newStatus }
+    if (newStatus === 'DONE' && task.status !== 'DONE') data.completedAt = new Date()
+    else if (newStatus !== 'DONE') data.completedAt = null
+
+    const updates = otherTasks.map((t, idx) =>
       prisma.task.update({
         where: { id: t.id },
-        data: { status: newStatus, order: idx }
+        data: { ...data, order: idx }
       })
     );
     await prisma.$transaction(updates);
 
     revalidatePath("/workspace/kanban");
-    revalidatePath("/workspace"); 
+    revalidatePath("/workspace");
     return { success: true };
   } catch (error: any) {
-    console.error("Failed to reorder task:", error);
     return { success: false, error: error.message };
   }
 }
 
 export async function createInlineTask(title: string, status: string) {
   if (!title.trim()) return { success: false };
-
   try {
-    // Tìm Pool chung của đội
     let pool = await prisma.pool.findFirst();
     if (!pool) {
       pool = await prisma.pool.create({ data: { name: "Ban Truyền thông Chánh Hưng" } });
     }
 
-    // Tạo thẻ và gán đúng trạng thái của cột đó
     await prisma.task.create({
-      data: {
-        title: title,
-        status: status, // Nằm ở cột nào thì status là cột đó
-        priority: 'MEDIUM',
-        poolId: pool.id,
-        order: 0 // Đẩy lên đầu
-      }
+      data: { title, status, priority: 'MEDIUM', poolId: pool.id, order: 0 }
     });
 
     revalidatePath('/workspace/kanban');
     revalidatePath('/workspace');
     return { success: true };
   } catch (error: any) {
-    console.error("Failed to create inline task:", error);
     return { success: false };
+  }
+}
+
+export async function deleteTask(taskId: string) {
+  try {
+    await prisma.task.delete({ where: { id: taskId } });
+    revalidatePath('/workspace/kanban');
+    revalidatePath('/workspace');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function togglePoolItem(taskId: string, isPoolItem: boolean) {
+  try {
+    await prisma.task.update({ where: { id: taskId }, data: { isPoolItem } });
+    revalidatePath('/workspace/kanban');
+    revalidatePath('/workspace');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }

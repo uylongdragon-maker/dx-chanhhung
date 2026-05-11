@@ -1,14 +1,14 @@
 {
-  "name": "Tuổi Trẻ Số Chánh Hưng",
-  "short_name": "DX Chánh Hưng",
-  "description": "Hệ thống điều phối nòng cốt của Ban Truyền thông",
+  "name": "Workspace Chánh Hưng",
+  "short_name": "CH Workspace",
+  "description": "Hệ thống quản lý công việc và truyền thông Ban Chánh Hưng",
   "start_url": "/workspace",
-  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f8fafc",
-  "theme_color": "#3b82f6",
-  "categories": ["productivity", "utilities"],
+  "theme_color": "#2563eb",
+  "categories": ["productivity", "business"],
+  "lang": "vi",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -22,5 +22,9 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    { "name": "Kanban", "url": "/workspace/kanban", "description": "Mở bảng Kanban" },
+    { "name": "Chat",   "url": "/workspace/chat",   "description": "Mở thảo luận" }
   ]
 }

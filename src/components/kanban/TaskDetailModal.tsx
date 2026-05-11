@@ -1,349 +1,339 @@
 'use client'
 
-import { useState, useTransition, useEffect } from "react";
-import { 
-  X, AlignLeft, CheckSquare, Paperclip, Clock, User as UserIcon, 
-  Trash2, Plus, MessageSquare, Send, Calendar, AlertCircle, Loader2
-} from "lucide-react";
-import { 
-  updateTaskDescription, addChecklist, addChecklistItem, 
-  toggleChecklistItem, addTaskActivity, updateTaskDueDate, 
-  updateTaskAssignment, addTaskAttachment, updateTaskPriority 
-} from "@/app/workspace/kanban/card_actions";
+import { useState, useTransition } from "react";
+import { X, AlignLeft, CheckSquare, Paperclip, Clock, Trash2, Plus, MessageSquare, Send, Calendar, Loader2, Pin, User, Flag, Tag, Eye } from "lucide-react";
+import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem } from "@/app/workspace/kanban/card_actions";
+import { deleteTask, togglePoolItem } from "@/app/workspace/kanban/actions";
 import { createClient } from "@/utils/supabase/client";
+import toast from "react-hot-toast";
 
-interface TaskDetailModalProps {
-  task: any;
-  users: any[];
-  currentUser: any;
-  onClose: () => void;
-}
+const PRIORITIES = [
+  { value: 'LOW',    label: 'Thấp',  cls: 'bg-slate-100 text-slate-600' },
+  { value: 'MEDIUM', label: 'TB',    cls: 'bg-blue-500 text-white' },
+  { value: 'HIGH',   label: 'Cao',   cls: 'bg-orange-500 text-white' },
+  { value: 'URGENT', label: 'Khẩn', cls: 'bg-rose-500 text-white' },
+];
 
-export default function TaskDetailModal({ task, users, currentUser, onClose }: TaskDetailModalProps) {
+const LABEL_PRESETS = [
+  { name: 'Khẩn cấp', color: '#ef4444' },
+  { name: 'Thiết kế', color: '#8b5cf6' },
+  { name: 'Nội dung', color: '#3b82f6' },
+  { name: 'Kỹ thuật', color: '#10b981' },
+  { name: 'Sự kiện',  color: '#f59e0b' },
+  { name: 'Review',   color: '#ec4899' },
+];
+
+const STATUS_LABELS: Record<string, string> = { TODO: 'Cần làm', DOING: 'Đang làm', DONE: 'Hoàn thành' };
+
+export default function TaskDetailModal({ task, users, currentUser, onClose }: { task: any; users: any[]; currentUser: any; onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [description, setDescription] = useState(task.description || "");
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditDesc, setIsEditDesc] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [newChecklistTitle, setNewChecklistTitle] = useState("");
+  const [addingChecklistId, setAddingChecklistId] = useState<string | null>(null);
+  const [newItemText, setNewItemText] = useState("");
+  const [localTask, setLocalTask] = useState(task);
   const supabase = createClient();
 
-  const handleSaveDescription = () => {
+  const run = (fn: () => Promise<any>, successMsg?: string) => {
     startTransition(async () => {
-      await updateTaskDescription(task.id, description);
-      setIsEditingDescription(false);
+      const res = await fn();
+      if (res?.success === false) toast.error(res.error || "Có lỗi xảy ra");
+      else if (successMsg) toast.success(successMsg);
     });
   };
+
+  const handleSaveDesc = () => run(async () => { const r = await updateTaskDescription(task.id, description); setIsEditDesc(false); return r; }, "Đã lưu mô tả");
 
   const handleAddChecklist = () => {
-    const title = prompt("Nhập tên danh sách công việc:");
-    if (title) {
-      startTransition(async () => {
-        await addChecklist(task.id, title);
-      });
-    }
+    if (!newChecklistTitle.trim()) return;
+    run(async () => { const r = await addChecklist(task.id, newChecklistTitle); setNewChecklistTitle(""); return r; }, "Đã thêm checklist");
   };
 
-  const handleAddChecklistItem = (checklistId: string) => {
-    const text = prompt("Nhập công việc cần làm:");
-    if (text) {
-      startTransition(async () => {
-        await addChecklistItem(checklistId, text);
-      });
-    }
+  const handleAddItem = (checklistId: string) => {
+    if (!newItemText.trim()) return;
+    run(async () => { const r = await addChecklistItem(checklistId, newItemText); setNewItemText(""); setAddingChecklistId(null); return r; }, "Đã thêm mục");
   };
 
-  const handleToggleItem = (itemId: string, isCompleted: boolean) => {
-    startTransition(async () => {
-      await toggleChecklistItem(itemId, isCompleted);
-    });
-  };
-
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-    startTransition(async () => {
-      await addTaskActivity(task.id, currentUser.id, 'COMMENT', newComment);
-      setNewComment("");
-    });
+  const handleComment = () => {
+    if (!newComment.trim() || !currentUser?.id) return;
+    const text = newComment;
+    setNewComment("");
+    run(() => addTaskActivity(task.id, currentUser.id, 'COMMENT', text));
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0]; if (!file) return;
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `tasks/${task.id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('media') // Giả định dùng bucket 'media' đã có
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('media')
-        .getPublicUrl(filePath);
-
-      startTransition(async () => {
-        await addTaskAttachment(task.id, publicUrl);
-      });
-    } catch (error: any) {
-      alert("Lỗi tải lên: " + error.message);
-    } finally {
-      setIsUploading(false);
-    }
+      const path = `tasks/${task.id}/${Math.random()}.${file.name.split('.').pop()}`;
+      const { error } = await supabase.storage.from('media').upload(path, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+      run(() => addTaskAttachment(task.id, publicUrl), "Đã đính kèm tệp");
+    } catch (err: any) { toast.error("Lỗi tải lên: " + err.message); }
+    finally { setIsUploading(false); }
   };
 
+  const handleDelete = () => {
+    if (!confirm("Xoá thẻ việc này?")) return;
+    run(async () => { const r = await deleteTask(task.id); if (r.success) onClose(); return r; }, "Đã xoá");
+  };
+
+  const handleTogglePool = () => {
+    const next = !localTask.isPoolItem;
+    setLocalTask((p: any) => ({ ...p, isPoolItem: next }));
+    run(() => togglePoolItem(task.id, next), next ? "Đã ghim vào Pool chung" : "Đã bỏ ghim");
+  };
+
+  const handleLabel = (preset: { name: string; color: string }) => {
+    run(() => addTaskLabel(task.id, preset.name, preset.color), `Đã thêm label "${preset.name}"`);
+    setShowLabelPicker(false);
+  };
+
+  const pDef = PRIORITIES.find(p => p.value === task.priority) || PRIORITIES[1];
+  const checkTotal = localTask.checklists?.reduce((a: number, cl: any) => a + (cl.items?.length || 0), 0) || 0;
+  const checkDone  = localTask.checklists?.reduce((a: number, cl: any) => a + (cl.items?.filter((i: any) => i.isCompleted).length || 0), 0) || 0;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div 
-        className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20"
-        onClick={(e) => e.stopPropagation()}
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-slate-900 w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-white/20 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300"
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start">
-          <div className="flex gap-4">
-            <div className="p-3 bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-500/20">
-               <CheckSquare size={24} />
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start gap-4 shrink-0">
+          <div className="flex gap-3 flex-1 min-w-0">
+            <div className="p-2.5 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 shrink-0">
+              <CheckSquare size={20} />
             </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">{task.title}</h2>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">
-                Trong cột <span className="text-blue-500 underline decoration-2">{task.status}</span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">{task.title}</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                {STATUS_LABELS[task.status] || task.status}
+                {localTask.isPoolItem && <span className="ml-2 text-blue-500">· Đã ghim Pool</span>}
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-          >
-            <X size={20} className="text-slate-400" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0">
+            <X size={18} className="text-slate-400" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
-          {/* Main Content */}
-          <div className="md:col-span-8 flex flex-col gap-10">
-            
+        <div className="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Left: Content */}
+          <div className="md:col-span-8 flex flex-col gap-8">
+
+            {/* Labels */}
+            {task.labels?.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {task.labels.map((l: any) => (
+                  <div key={l.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full text-white text-[10px] font-black" style={{ backgroundColor: l.color }}>
+                    <Tag size={10} />
+                    {l.name}
+                    <button onClick={() => run(() => removeTaskLabel(l.id))} className="hover:opacity-70 ml-1">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Description */}
             <section>
-              <div className="flex items-center gap-3 mb-4 text-slate-800 dark:text-slate-200">
-                <AlignLeft size={20} />
-                <h3 className="font-bold">Mô tả chi tiết</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <AlignLeft size={16} className="text-slate-500" />
+                <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">Mô tả chi tiết</h3>
               </div>
-              {isEditingDescription ? (
-                <div className="ml-8">
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-2 border-blue-500/20 rounded-2xl focus:ring-4 focus:ring-blue-500/10 transition-all text-sm min-h-[150px]"
-                    placeholder="Thêm mô tả chi tiết cho công việc này..."
-                  />
-                  <div className="flex gap-2 mt-3">
-                    <button 
-                      onClick={handleSaveDescription}
-                      disabled={isPending}
-                      className="px-6 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all"
-                    >
-                      {isPending ? 'Đang lưu...' : 'Lưu lại'}
-                    </button>
-                    <button 
-                      onClick={() => setIsEditingDescription(false)}
-                      className="px-6 py-2 text-slate-500 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                    >
-                      Hủy
-                    </button>
+              {isEditDesc ? (
+                <div className="ml-6">
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm min-h-[120px] focus:ring-2 focus:ring-blue-500/20 outline-none resize-none" placeholder="Mô tả chi tiết..." />
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={handleSaveDesc} disabled={isPending} className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Lưu</button>
+                    <button onClick={() => setIsEditDesc(false)} className="px-4 py-1.5 text-slate-500 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Hủy</button>
                   </div>
                 </div>
               ) : (
-                <div 
-                  onClick={() => setIsEditingDescription(true)}
-                  className="ml-8 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm text-slate-600 dark:text-slate-400 min-h-[100px]"
-                >
-                  {description || "Chưa có mô tả chi tiết. Bấm vào đây để thêm..."}
+                <div onClick={() => setIsEditDesc(true)} className="ml-6 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm text-slate-600 dark:text-slate-400 min-h-[80px]">
+                  {description || <span className="italic text-slate-400">Chưa có mô tả. Nhấn để thêm...</span>}
                 </div>
               )}
             </section>
 
             {/* Checklists */}
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3 text-slate-800 dark:text-slate-200">
-                  <CheckSquare size={20} />
-                  <h3 className="font-bold">Checklist / Danh sách việc</h3>
-                </div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckSquare size={16} className="text-slate-500" />
+                <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">Checklist</h3>
+                {checkTotal > 0 && (
+                  <span className="ml-auto text-[10px] font-black text-slate-400">{checkDone}/{checkTotal}</span>
+                )}
               </div>
-              <div className="ml-8 flex flex-col gap-6">
+
+              {checkTotal > 0 && (
+                <div className="ml-6 mb-4">
+                  <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-500 ${checkDone === checkTotal ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${(checkDone / checkTotal) * 100}%` }} />
+                  </div>
+                </div>
+              )}
+
+              <div className="ml-6 flex flex-col gap-4">
                 {task.checklists?.map((cl: any) => (
-                  <div key={cl.id} className="bg-slate-50/50 dark:bg-slate-800/30 p-4 rounded-3xl border border-slate-100 dark:border-slate-800">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-bold text-sm text-blue-600">{cl.title}</h4>
-                      <button 
-                        onClick={() => handleAddChecklistItem(cl.id)}
-                        className="text-[10px] font-black uppercase text-slate-400 hover:text-blue-500 transition-colors"
-                      >
-                         + Thêm mục
-                      </button>
-                    </div>
+                  <div key={cl.id} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl">
+                    <h4 className="font-bold text-sm text-blue-600 mb-3">{cl.title}</h4>
                     <div className="flex flex-col gap-2">
-                       {cl.items?.map((item: any) => (
-                         <div key={item.id} className="flex items-center gap-3 group">
-                            <input 
-                              type="checkbox" 
-                              checked={item.isCompleted}
-                              onChange={(e) => handleToggleItem(item.id, e.target.checked)}
-                              className="w-5 h-5 rounded-lg border-2 border-slate-300 text-blue-600 focus:ring-0 transition-all cursor-pointer"
-                            />
-                            <span className={`text-sm ${item.isCompleted ? 'line-through text-slate-400 italic' : 'text-slate-700 dark:text-slate-300'}`}>
-                              {item.text}
-                            </span>
-                         </div>
-                       ))}
+                      {cl.items?.map((item: any) => (
+                        <div key={item.id} className="flex items-center gap-3 group">
+                          <input type="checkbox" checked={item.isCompleted} onChange={e => run(() => toggleChecklistItem(item.id, e.target.checked))} className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 cursor-pointer" />
+                          <span className={`text-sm flex-1 ${item.isCompleted ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>{item.text}</span>
+                          <button onClick={() => run(() => deleteChecklistItem(item.id))} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
+                    {addingChecklistId === cl.id ? (
+                      <div className="mt-3 flex gap-2">
+                        <input autoFocus value={newItemText} onChange={e => setNewItemText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddItem(cl.id)} className="flex-1 px-3 py-1.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="Tên công việc..." />
+                        <button onClick={() => handleAddItem(cl.id)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg">Thêm</button>
+                        <button onClick={() => setAddingChecklistId(null)} className="px-3 py-1.5 text-slate-500 text-xs font-bold hover:bg-slate-100 rounded-lg">Hủy</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setAddingChecklistId(cl.id)} className="mt-2 text-[10px] font-black text-slate-400 hover:text-blue-500 transition-colors">+ Thêm mục</button>
+                    )}
                   </div>
                 ))}
-                <button 
-                  onClick={handleAddChecklist}
-                  className="w-full p-3 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all"
-                >
-                  + Tạo danh sách công việc mới
-                </button>
+
+                <div className="flex gap-2">
+                  <input value={newChecklistTitle} onChange={e => setNewChecklistTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddChecklist()} className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-400 transition-colors" placeholder="+ Thêm checklist mới..." />
+                  {newChecklistTitle && <button onClick={handleAddChecklist} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">Tạo</button>}
+                </div>
               </div>
             </section>
 
             {/* Activity */}
             <section>
-              <div className="flex items-center gap-3 mb-6 text-slate-800 dark:text-slate-200">
-                <MessageSquare size={20} />
-                <h3 className="font-bold">Hoạt động & Bình luận</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare size={16} className="text-slate-500" />
+                <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">Hoạt động</h3>
               </div>
-              <div className="ml-8 flex flex-col gap-6">
-                {/* Input */}
-                <div className="flex gap-4">
-                   <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-xs text-white font-bold flex-shrink-0">
-                      {currentUser?.name?.substring(0,2).toUpperCase() || '??'}
-                   </div>
-                   <div className="flex-1 relative">
-                      <textarea 
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Viết bình luận..."
-                        className="w-full p-4 pr-12 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/20"
-                        rows={1}
-                      />
-                      <button 
-                        onClick={handleAddComment}
-                        disabled={isPending || !newComment.trim()}
-                        className="absolute right-3 top-3 p-1.5 bg-blue-600 text-white rounded-xl hover:scale-110 active:scale-95 transition-all disabled:opacity-50"
-                      >
-                         <Send size={14} />
-                      </button>
-                   </div>
+              <div className="ml-6 flex flex-col gap-4">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold shrink-0">
+                    {currentUser?.name?.substring(0,2).toUpperCase() || 'ME'}
+                  </div>
+                  <div className="flex-1 relative">
+                    <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleComment(); }}} placeholder="Viết bình luận... (Enter để gửi)" className="w-full p-3 pr-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none" rows={2} />
+                    <button onClick={handleComment} disabled={!newComment.trim() || isPending} className="absolute right-2.5 bottom-2.5 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40">
+                      <Send size={12} />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Timeline */}
-                <div className="flex flex-col gap-6">
-                   {task.activities?.map((act: any) => (
-                     <div key={act.id} className="flex gap-4">
-                        <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-500 overflow-hidden">
-                           {act.user?.avatarUrl ? <img src={act.user.avatarUrl} className="w-full h-full object-cover" /> : act.user?.name?.substring(0,2).toUpperCase()}
-                        </div>
-                        <div>
-                           <p className="text-sm">
-                             <span className="font-black text-slate-800 dark:text-slate-100 mr-2">{act.user?.name}</span>
-                             {act.type === 'COMMENT' ? (
-                               <span className="text-slate-700 dark:text-slate-300">{act.text}</span>
-                             ) : (
-                               <span className="text-slate-400 italic">{act.text}</span>
-                             )}
-                           </p>
-                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 block">
-                             {new Date(act.createdAt).toLocaleString('vi-VN')}
-                           </span>
-                        </div>
-                     </div>
-                   ))}
-                </div>
+                {task.activities?.map((act: any) => (
+                  <div key={act.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-500 overflow-hidden shrink-0">
+                      {act.user?.avatarUrl ? <img src={act.user.avatarUrl} className="w-full h-full object-cover" alt="" /> : act.user?.name?.substring(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm">
+                        <span className="font-black text-slate-800 dark:text-slate-100 mr-2">{act.user?.name}</span>
+                        {act.type === 'COMMENT'
+                          ? <span className="text-slate-700 dark:text-slate-300">{act.text}</span>
+                          : <span className="text-slate-400 italic">{act.text}</span>}
+                      </p>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(act.createdAt).toLocaleString('vi-VN')}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           </div>
 
-          {/* Sidebar */}
-          <div className="md:col-span-4 flex flex-col gap-6">
-             {/* Action group */}
-             <div className="flex flex-col gap-3">
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Thêm vào thẻ</span>
-               
-               <button 
-                onClick={() => document.getElementById('fileUpload')?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition-all text-xs font-bold text-slate-700 dark:text-slate-300"
-               >
-                 {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
-                 Tệp đính kèm
-               </button>
-               <input type="file" id="fileUpload" className="hidden" onChange={handleFileUpload} />
+          {/* Right: Sidebar */}
+          <div className="md:col-span-4 flex flex-col gap-5">
 
-               <button className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition-all text-xs font-bold text-slate-700 dark:text-slate-300">
-                 <Clock size={16} />
-                 Ngày hết hạn
-               </button>
-             </div>
+            {/* Priority */}
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Flag size={10} /> Độ ưu tiên</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {PRIORITIES.map(p => (
+                  <button key={p.value} onClick={() => run(() => updateTaskPriority(task.id, p.value))} className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${task.priority === p.value ? p.cls + ' scale-[1.03] shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:scale-[1.02]'}`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-             {/* Meta data */}
-             <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] flex flex-col gap-4">
-                <div>
-                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Người phụ trách</span>
-                   <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold">
-                        {task.assignee?.name?.substring(0,2).toUpperCase() || '??'}
-                      </div>
-                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{task.assignee?.name || "Chưa phân công"}</span>
-                   </div>
-                </div>
-                <div>
-                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Độ ưu tiên</span>
-                   <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm inline-block ${
-                      task.priority === 'URGENT' ? 'bg-rose-500 text-white' :
-                      task.priority === 'HIGH' ? 'bg-orange-500 text-white' :
-                      task.priority === 'MEDIUM' ? 'bg-blue-500 text-white' :
-                      'bg-slate-100 text-slate-500'
-                   }`}>
-                      {task.priority}
-                   </span>
-                </div>
-                {task.dueDate && (
-                  <div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Hạn chót</span>
-                    <div className="flex items-center gap-2 text-rose-500 font-bold text-sm">
-                       <Calendar size={14} />
-                       {new Date(task.dueDate).toLocaleDateString('vi-VN')}
-                    </div>
+            {/* Assignee */}
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><User size={10} /> Người phụ trách</p>
+              <select defaultValue={task.assigneeId || ""} onChange={e => run(() => updateTaskAssignment(task.id, e.target.value || null), "Đã cập nhật người phụ trách")} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none">
+                <option value="">-- Chưa phân công --</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+
+            {/* Due Date */}
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Calendar size={10} /> Hạn chót</p>
+              <input type="datetime-local" defaultValue={task.dueDate ? new Date(task.dueDate).toISOString().slice(0,16) : ''} onChange={e => run(() => updateTaskDueDate(task.id, e.target.value || null), "Đã cập nhật hạn chót")} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
+            </div>
+
+            {/* Labels */}
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Tag size={10} /> Labels</p>
+              <div className="relative">
+                <button onClick={() => setShowLabelPicker(!showLabelPicker)} className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 hover:border-blue-400 transition-colors">
+                  <Plus size={12} /> Thêm label
+                </button>
+                {showLabelPicker && (
+                  <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-10 p-2 flex flex-col gap-1">
+                    {LABEL_PRESETS.map(preset => (
+                      <button key={preset.name} onClick={() => handleLabel(preset)} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-left">
+                        <div className="w-5 h-5 rounded-md shrink-0" style={{ backgroundColor: preset.color }} />
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{preset.name}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
-             </div>
+              </div>
+            </div>
 
-             {/* Attachments List */}
-             {task.attachments?.length > 0 && (
-               <div className="flex flex-col gap-3">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Các tệp đính kèm</span>
-                  <div className="flex flex-col gap-2">
-                     {task.attachments.map((url: string, i: number) => (
-                       <a key={i} href={url} target="_blank" className="p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center gap-3 hover:shadow-md transition-all">
-                          <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-xl flex items-center justify-center text-blue-500">
-                             <Paperclip size={18} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                             <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100 truncate">Tài liệu {i+1}</p>
-                             <span className="text-[9px] text-slate-400 uppercase font-black">Nhấn để xem</span>
-                          </div>
-                       </a>
-                     ))}
-                  </div>
-               </div>
-             )}
+            {/* Pin to Pool */}
+            <button onClick={handleTogglePool} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${localTask.isPoolItem ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
+              <Pin size={14} className={localTask.isPoolItem ? 'rotate-45' : ''} />
+              {localTask.isPoolItem ? 'Đã ghim vào Pool chung' : 'Ghim vào Pool chung'}
+            </button>
+
+            {/* Attachment */}
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Paperclip size={10} /> Đính kèm</p>
+              <button onClick={() => document.getElementById('fileUpload-modal')?.click()} disabled={isUploading} className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 hover:border-blue-400 transition-colors disabled:opacity-50">
+                {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
+                {isUploading ? 'Đang tải...' : 'Tải tệp lên'}
+              </button>
+              <input type="file" id="fileUpload-modal" className="hidden" onChange={handleFileUpload} />
+
+              {task.attachments?.length > 0 && (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {task.attachments.map((url: string, i: number) => (
+                    <a key={i} href={url} target="_blank" className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:shadow-sm transition-all">
+                      <div className="w-8 h-8 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-blue-500 shrink-0">
+                        <Paperclip size={14} />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">Tài liệu {i+1}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Delete */}
+            <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-200 mt-auto">
+              <Trash2 size={14} /> Xoá thẻ việc
+            </button>
           </div>
         </div>
       </div>
