@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/app/login/actions";
 import { LayoutDashboard, Kanban, Users, BookOpen, Calendar, Image as ImageIcon, MessageSquare, Rocket, Settings, ShieldCheck, LogOut, Pin } from "lucide-react";
+import NotificationCenter from "./NotificationCenter";
 
 export default function Sidebar({ user }: { user: any }) {
   const pathname = usePathname();
@@ -67,6 +68,7 @@ export default function Sidebar({ user }: { user: any }) {
           <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{user?.name || 'Thành viên'}</span>
           <span className="text-[10px] text-slate-400 font-bold truncate">{user?.role || 'MEMBER'}</span>
         </div>
+        <NotificationCenter userId={user?.id || ""} />
         <form action={signOut}>
           <button type="submit" className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all">
             <LogOut size={18} />

@@ -131,9 +131,10 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
         { event: "INSERT", schema: "public", table: "Message" },
         (payload) => {
           const row = payload.new as any;
-          // Filter to this room
           if (row.roomId !== roomId) return;
-          // Ignore if already shown (own messages are shown optimistically)
+          // SKIP own messages — they are handled by optimistic UI + polling reconciliation
+          // This prevents the race-condition duplicate where realtime fires before sendRoomMessage returns
+          if (row.senderId === currentUser.id) return;
           if (seenIdsRef.current.has(row.id)) return;
           seenIdsRef.current.add(row.id);
           const senderUser = users?.find(u => u.id === row.senderId);
@@ -143,12 +144,10 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
           setMessagesRef.current(prev => [...prev, { ...row, sender }]);
         }
       )
-      .subscribe((status) => {
-        console.log(`[Realtime ${roomId}] status:`, status);
-      });
+      .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [roomId, users]);
+  }, [roomId, users, currentUser.id]);
 
   // ── Polling Fallback: every 3s silently sync new messages ──────────
   useEffect(() => {
@@ -187,7 +186,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
       id: optId,
       content,
       senderId: currentUser.id,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })).toISOString(),
       type: "TEXT",
       sender: { name: currentUser.name || currentUser.email, avatarUrl: currentUser.avatarUrl || null },
       _optimistic: true,
@@ -236,7 +235,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
           const isMe = m.senderId === currentUser.id;
           const displayName = m.sender?.name || (isMe ? currentUser.name || "Bạn" : "Thành viên");
           const initials = displayName?.substring(0, 2).toUpperCase() || "??";
-          const time = new Date(m.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+          const time = new Date(m.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
           const isTaskRef = m.type === "TASK_REF";
 
           return (
