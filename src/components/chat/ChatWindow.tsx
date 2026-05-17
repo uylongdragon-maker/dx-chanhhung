@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useTransition } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { sendRoomMessage, createTaskFromMessage } from "@/app/actions/chat-rooms";
-import { Send, Smile, Loader2, CheckSquare, X, Calendar, User, Flag, Plus, Hash } from "lucide-react";
+import { Send, Smile, Loader2, CheckSquare, X, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Message {
@@ -19,7 +19,7 @@ interface Message {
 
 interface Props {
   messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setMessages: (val: Message[] | ((prev: Message[]) => Message[])) => void;
   currentUser: any;
   roomId: string;
   poolId: string;
@@ -41,15 +41,9 @@ function QuickTaskPanel({
   const handleCreate = () => {
     if (!title.trim()) { toast.error("Nhập tiêu đề công việc!"); return; }
     startTransition(async () => {
-      const res = await createTaskFromMessage(
-        title, "", assigneeId || null, dueDate || null, poolId
-      );
-      if (res.success) {
-        toast.success("✅ Đã tạo việc và cập nhật vào Kanban!");
-        onClose();
-      } else {
-        toast.error("Có lỗi khi tạo việc");
-      }
+      const res = await createTaskFromMessage(title, "", assigneeId || null, dueDate || null, poolId);
+      if (res.success) { toast.success("✅ Đã tạo việc vào Kanban!"); onClose(); }
+      else toast.error("Có lỗi khi tạo việc");
     });
   };
 
@@ -64,17 +58,14 @@ function QuickTaskPanel({
     <div className="absolute bottom-full mb-2 left-0 right-0 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] shadow-2xl p-4 animate-in slide-in-from-bottom-2 duration-200">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest flex items-center gap-1.5">
-          <CheckSquare size={13} className="text-blue-500" /> Giao việc từ phòng này
+          <CheckSquare size={13} className="text-blue-500" /> Giao việc từ phòng
         </p>
         <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
           <X size={12} className="text-slate-400" />
         </button>
       </div>
-
-      <input value={title} onChange={e => setTitle(e.target.value)}
-        placeholder="Tên công việc..."
+      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tên công việc..."
         className="w-full px-3 py-2 mb-3 text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" />
-
       <div className="flex gap-2 mb-3 flex-wrap">
         {PRIOS.map(p => (
           <button key={p.v} onClick={() => setPriority(p.v)}
@@ -83,7 +74,6 @@ function QuickTaskPanel({
           </button>
         ))}
       </div>
-
       <div className="grid grid-cols-2 gap-2 mb-3">
         <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
           className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none">
@@ -93,7 +83,6 @@ function QuickTaskPanel({
         <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
           className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
       </div>
-
       <button onClick={handleCreate} disabled={isPending || !title.trim()}
         className="w-full py-2.5 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-blue-500/20">
         {isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
@@ -109,41 +98,93 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+
+  // Always hold latest setMessages in a ref to avoid stale closure in async callbacks
+  const setMessagesRef = useRef(setMessages);
+  useEffect(() => { setMessagesRef.current = setMessages; }, [setMessages]);
+
+  // Track IDs already in the list to prevent duplicates
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    // Reset seen IDs when switching rooms
+    seenIdsRef.current = new Set(
+      messages.filter(m => !m._optimistic).map(m => m.id)
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
   const scrollToBottom = useCallback(() => {
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    }, 50);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
   }, []);
 
-  useEffect(() => { scrollToBottom(); }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Supabase Realtime – scoped to this room
+  // ── Supabase Realtime ──────────────────────────────────────────────
   useEffect(() => {
+    const supabase = createClient();
     const channel = supabase
-      .channel(`chat:room:${roomId}`)
-      .on("postgres_changes",
+      .channel(`room-messages-${roomId}`)
+      .on(
+        "postgres_changes",
         { event: "INSERT", schema: "public", table: "Message" },
         (payload) => {
-          if (payload.new.roomId !== roomId) return;
-          if (payload.new.senderId === currentUser.id) return;
-          const senderUser = users?.find(u => u.id === payload.new.senderId);
-          const sender = senderUser ? { name: senderUser.name, avatarUrl: senderUser.avatarUrl } : null;
-          setMessages(prev => [...prev, { ...payload.new as any, sender }]);
+          const row = payload.new as any;
+          // Filter to this room
+          if (row.roomId !== roomId) return;
+          // Ignore if already shown (own messages are shown optimistically)
+          if (seenIdsRef.current.has(row.id)) return;
+          seenIdsRef.current.add(row.id);
+          const senderUser = users?.find(u => u.id === row.senderId);
+          const sender = senderUser
+            ? { name: senderUser.name, avatarUrl: senderUser.avatarUrl }
+            : null;
+          setMessagesRef.current(prev => [...prev, { ...row, sender }]);
         }
       )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [roomId, currentUser.id, users, setMessages]);
+      .subscribe((status) => {
+        console.log(`[Realtime ${roomId}] status:`, status);
+      });
 
+    return () => { supabase.removeChannel(channel); };
+  }, [roomId, users]);
+
+  // ── Polling Fallback: every 3s silently sync new messages ──────────
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const fetched: Message[] = data.messages || [];
+        const newOnes = fetched.filter(m => !seenIdsRef.current.has(m.id));
+        if (newOnes.length === 0) return;
+        newOnes.forEach(m => seenIdsRef.current.add(m.id));
+        setMessagesRef.current(prev => {
+          // Remove orphan optimistic messages, add new real ones, sort by time
+          const realPrev = prev.filter(m => !m._optimistic);
+          const allIds = new Set(realPrev.map(m => m.id));
+          const unique = newOnes.filter(m => !allIds.has(m.id));
+          if (unique.length === 0) return prev;
+          return [...realPrev, ...unique].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        });
+      } catch { /* silently ignore */ }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [roomId]);
+
+  // ── Send message ───────────────────────────────────────────────────
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const content = text.trim();
     if (!content || isSending) return;
 
+    const optId = `opt-${Date.now()}`;
     const optimisticMsg: Message = {
-      id: `opt-${Date.now()}`,
+      id: optId,
       content,
       senderId: currentUser.id,
       createdAt: new Date().toISOString(),
@@ -158,14 +199,19 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
     try {
       const res = await sendRoomMessage(content, currentUser.id, roomId, poolId);
       if (!res.success) {
-        setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+        setMessages(prev => prev.filter(m => m.id !== optId));
         setText(content);
         toast.error("Không gửi được tin nhắn");
       } else {
-        setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? { ...m, _optimistic: false } : m));
+        // Replace optimistic with real record; add real ID to seenIds
+        const realId = (res as any).messageId || optId;
+        seenIdsRef.current.add(realId);
+        setMessages(prev => prev.map(m =>
+          m.id === optId ? { ...m, id: realId, _optimistic: false } : m
+        ));
       }
     } catch {
-      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      setMessages(prev => prev.filter(m => m.id !== optId));
       setText(content);
     } finally {
       setIsSending(false);
@@ -182,7 +228,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
           <div className="flex flex-col items-center justify-center h-full text-center opacity-40 gap-3">
             <div className="text-4xl">💬</div>
             <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Chưa có tin nhắn nào</p>
-            <p className="text-xs text-slate-400">Hãy bắt đầu cuộc trò chuyện trong phòng này!</p>
+            <p className="text-xs text-slate-400">Hãy bắt đầu cuộc trò chuyện!</p>
           </div>
         )}
 
@@ -194,7 +240,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
           const isTaskRef = m.type === "TASK_REF";
 
           return (
-            <div key={m.id} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"} ${m._optimistic ? "opacity-60" : "opacity-100"} transition-opacity`}>
+            <div key={m.id} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"} ${m._optimistic ? "opacity-70" : "opacity-100"} transition-opacity`}>
               <div className="w-7 h-7 rounded-xl flex-shrink-0 flex items-center justify-center text-[9px] font-black text-white overflow-hidden"
                 style={{ background: isMe ? "linear-gradient(135deg,#2563eb,#7c3aed)" : "linear-gradient(135deg,#475569,#64748b)" }}>
                 {m.sender?.avatarUrl ? <img src={m.sender.avatarUrl} className="w-full h-full object-cover" alt="" /> : initials}
@@ -230,38 +276,23 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
       <div className="p-3 bg-white/50 dark:bg-slate-900/50 border-t border-white/60 dark:border-slate-800/60 backdrop-blur-xl">
         <div className="relative">
           {showTaskPanel && (
-            <QuickTaskPanel
-              prefill=""
-              users={users}
-              currentUser={currentUser}
-              poolId={poolId}
-              onClose={() => setShowTaskPanel(false)}
-            />
+            <QuickTaskPanel prefill="" users={users} currentUser={currentUser} poolId={poolId} onClose={() => setShowTaskPanel(false)} />
           )}
 
           <form onSubmit={onSend} className="flex items-center gap-2">
-            {/* Task button */}
-            <button
-              type="button"
-              onClick={() => setShowTaskPanel(v => !v)}
-              title="Giao việc từ phòng này"
+            <button type="button" onClick={() => setShowTaskPanel(v => !v)} title="Giao việc"
               className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
                 showTaskPanel ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-              }`}
-            >
+              }`}>
               <CheckSquare size={16} />
             </button>
 
             <div className="flex-1 relative">
               <input
-                ref={inputRef}
-                type="text"
-                placeholder={`Nhắn trong phòng...`}
-                value={text}
-                onChange={e => setText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(e as any); }}}
-                disabled={isSending}
-                autoComplete="off"
+                ref={inputRef} type="text" placeholder="Nhắn trong phòng..."
+                value={text} onChange={e => setText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(e as any); } }}
+                disabled={isSending} autoComplete="off"
                 className="w-full pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-sm font-medium text-slate-800 dark:text-slate-100 transition-all outline-none placeholder:text-slate-400 disabled:opacity-60"
               />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-amber-500 transition-colors">
@@ -269,11 +300,8 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
               </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={!text.trim() || isSending}
-              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-90 flex items-center justify-center shrink-0"
-            >
+            <button type="submit" disabled={!text.trim() || isSending}
+              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-90 flex items-center justify-center shrink-0">
               {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </form>

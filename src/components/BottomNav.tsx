@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from "@/app/login/actions"
@@ -17,14 +17,40 @@ import {
   Image as ImageIcon, 
   ShieldCheck, 
   LogOut, 
-  Award,
   ChevronRight
 } from 'lucide-react'
 
 export default function BottomNav({ user }: { user: any }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navVisible, setNavVisible] = useState(true);
   const isAdmin = user?.role === 'ADMIN';
+  const lastScrollY = useRef(0);
+  const ticking = useRef(false);
+
+  // Auto-hide nav when scrolling down, show when scrolling up
+  useEffect(() => {
+    const handleScroll = () => {
+      if (ticking.current) return;
+      ticking.current = true;
+      requestAnimationFrame(() => {
+        const currentY = window.scrollY;
+        const diff = currentY - lastScrollY.current;
+        if (diff > 8 && currentY > 60) {
+          // Scrolling down → hide
+          setNavVisible(false);
+          setMenuOpen(false);
+        } else if (diff < -5) {
+          // Scrolling up → show
+          setNavVisible(true);
+        }
+        lastScrollY.current = currentY;
+        ticking.current = false;
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Bottom primary navigation items (4 + 1 Menu trigger)
   const primaryItems = [
@@ -55,8 +81,8 @@ export default function BottomNav({ user }: { user: any }) {
 
       {/* 2. PREMIUM SLIDE-UP GLASSMORPHIC DRAWER MENU */}
       <div 
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.15)] transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) pb-24 ${
-          menuOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.15)] transition-all duration-500 pb-24 ${
+          menuOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'
         }`}
       >
         {/* Drawer Puller Tab Accent */}
@@ -150,7 +176,7 @@ export default function BottomNav({ user }: { user: any }) {
       </div>
 
       {/* 3. CORE BOTTOM NAVIGATION BAR */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${navVisible ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl border-t border-slate-200/50 dark:border-slate-800/60 shadow-[0_-20px_60px_rgba(0,0,0,0.08)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex justify-around items-center px-2 pt-2 pb-3 relative">
             {primaryItems.map((item) => {
@@ -173,7 +199,7 @@ export default function BottomNav({ user }: { user: any }) {
               );
             })}
 
-            {/* Menu Trigger Trigger */}
+            {/* Menu Trigger */}
             <button 
               onClick={() => setMenuOpen(!menuOpen)}
               className="flex flex-col items-center gap-1 flex-1 py-1 active:scale-90 transition-transform duration-150 min-w-0"
