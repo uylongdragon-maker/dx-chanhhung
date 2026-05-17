@@ -1,13 +1,48 @@
 "use client";
 
 import { useState } from "react";
-import { forceChangePassword, updateSystemKey } from "@/app/actions/admin";
-import { ShieldAlert, Key, CheckCircle2, XCircle, Loader2, User, Mail, ChevronRight, Zap } from "lucide-react";
+import { forceChangePassword, updateSystemKey, approveUser, deleteMember } from "@/app/actions/admin";
+import { ShieldAlert, Key, CheckCircle2, XCircle, Loader2, User, Mail, ChevronRight, Zap, Check, X, ShieldCheck, Award, Eye, EyeOff } from "lucide-react";
 
 export default function AdminSecurityTab({ users, currentAdminId }: { users: any[], currentAdminId: string }) {
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, { type: "success" | "error" | "loading", msg: string }>>({});
   const [apiKey, setApiKey] = useState("");
+  const [approving, setApproving] = useState<Record<string, boolean>>({});
+  const [rejecting, setRejecting] = useState<Record<string, boolean>>({});
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+
+  const pendingUsers = users.filter(u => u.status === "PENDING");
+  const approvedUsers = users.filter(u => u.status !== "PENDING");
+
+  const handleApprove = async (targetId: string) => {
+    setApproving({ ...approving, [targetId]: true });
+    const res = await approveUser(currentAdminId, targetId);
+    if (res.success) {
+      alert("Đã phê duyệt thành viên!");
+      window.location.reload();
+    } else {
+      alert("Lỗi: " + res.message);
+    }
+    setApproving({ ...approving, [targetId]: false });
+  };
+
+  const handleReject = async (targetId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn TỪ CHỐI và XOÁ tài khoản đăng ký này? Thao tác này sẽ xoá sạch tài khoản khỏi hệ thống.")) return;
+    setRejecting({ ...rejecting, [targetId]: true });
+    const res = await deleteMember(currentAdminId, targetId);
+    if (res.success) {
+      alert("Đã từ chối và xoá tài khoản đăng ký!");
+      window.location.reload();
+    } else {
+      alert("Lỗi: " + res.message);
+    }
+    setRejecting({ ...rejecting, [targetId]: false });
+  };
+
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswords({ ...visiblePasswords, [userId]: !visiblePasswords[userId] });
+  };
 
   const handleResetPassword = async (targetId: string, userName: string) => {
     const newPass = passwords[targetId];
@@ -31,6 +66,88 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
 
   return (
     <div className="flex flex-col gap-12 mt-16 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
+      {/* 0. DANH SÁCH THÀNH VIÊN ĐĂNG KÝ CHỜ DUYỆT */}
+      {pendingUsers.length > 0 && (
+        <div className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 backdrop-blur-3xl border border-blue-500/20 p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl opacity-50"></div>
+          
+          <div className="flex flex-col gap-2 mb-10 px-2 text-center md:text-left relative z-10">
+              <div className="flex items-center justify-center md:justify-start gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                      <ShieldCheck size={18} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">Yêu cầu phê duyệt</span>
+              </div>
+              <h3 className="text-2xl font-black text-slate-100 tracking-tighter uppercase leading-none mt-1">
+                Thành viên mới đăng ký ({pendingUsers.length})
+              </h3>
+              <p className="text-xs text-slate-400 font-medium italic mt-1">Vui lòng kiểm tra thông tin và phê duyệt tài khoản để hoạt động.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 relative z-10">
+            {pendingUsers.map(user => (
+              <div key={user.id} className="flex flex-col xl:flex-row xl:items-center justify-between p-8 bg-slate-900/40 border border-slate-800 rounded-[2.5rem] gap-8 hover:bg-slate-900/60 transition-all shadow-sm">
+                <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-500 flex items-center justify-center text-white text-sm font-black shadow-inner border border-blue-500/20">
+                    {user.name?.substring(0, 2).toUpperCase() || "??"}
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-100 text-lg tracking-tight leading-tight flex items-center gap-2">
+                      {user.name}
+                      {user.unit && (
+                        <span className="bg-blue-500/15 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                          <Award size={8} /> {user.unit}
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Mail size={12} className="text-slate-500" />
+                      <p className="text-xs text-slate-400 font-bold tracking-tight">{user.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-6 flex-1 xl:max-w-2xl justify-end">
+                  {/* Mật khẩu đã đăng ký */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-[1.5rem] px-6 py-4 flex items-center gap-4 min-w-[200px]">
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">Mật khẩu:</div>
+                    <div className="font-mono text-sm font-bold text-slate-200 select-all flex-1">
+                      {visiblePasswords[user.id] ? (user.tempPassword || "Chưa có") : "••••••••"}
+                    </div>
+                    <button 
+                      onClick={() => togglePasswordVisibility(user.id)}
+                      className="text-slate-500 hover:text-slate-300 transition-colors"
+                      title={visiblePasswords[user.id] ? "Ẩn" : "Hiện"}
+                    >
+                      {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => handleApprove(user.id)}
+                      disabled={approving[user.id]}
+                      className="px-6 py-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-emerald-500/20 flex items-center gap-2"
+                    >
+                      {approving[user.id] ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      Duyệt
+                    </button>
+                    <button 
+                      onClick={() => handleReject(user.id)}
+                      disabled={rejecting[user.id]}
+                      className="px-6 py-4 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 disabled:opacity-50 text-rose-400 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
+                    >
+                      {rejecting[user.id] ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                      Từ chối
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 1. KHU VỰC ĐỔI MẬT KHẨU THÀNH VIÊN */}
       <div className="bg-white/30 dark:bg-slate-950/20 backdrop-blur-3xl border border-white/60 dark:border-slate-800/60 p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
         {/* Decorative background glow */}
@@ -49,7 +166,7 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
         </div>
         
         <div className="grid grid-cols-1 gap-6 relative z-10">
-          {users.map(user => (
+          {approvedUsers.map(user => (
             <div key={user.id} className="flex flex-col xl:flex-row xl:items-center justify-between p-8 bg-white/40 dark:bg-slate-900/40 border border-white/60 dark:border-slate-800/60 rounded-[2.5rem] gap-8 hover:bg-white/60 dark:hover:bg-slate-900/60 transition-all group/item shadow-sm">
               <div className="flex items-center gap-6">
                 <div className="relative">

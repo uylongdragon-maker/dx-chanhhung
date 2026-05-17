@@ -9,7 +9,7 @@ export default function BottomNav({ user }: { user: any }) {
   const navItems = [
     { href: '/workspace',          icon: LayoutDashboard, label: 'Tổng quan' },
     { href: '/workspace/kanban',   icon: Kanban,           label: 'Công việc' },
-    { href: '/workspace/chat',     icon: MessageSquare,    label: 'Chat' },
+    { href: '/workspace/chat',     icon: MessageSquare,    label: 'Phòng Chat' },
     { href: '/workspace/meetings', icon: Calendar,         label: 'Lịch họp' },
     { href: '/workspace/settings', icon: Settings,         label: 'Cài đặt' },
   ];

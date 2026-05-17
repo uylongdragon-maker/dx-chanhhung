@@ -27,6 +27,8 @@ model User {
   avatarUrl String?
   unit      String?   // Đơn vị (VD: Bí thư chi Đoàn KP29)
   role      String    @default("MEMBER") // ADMIN, EDITOR, MEMBER
+  status    String    @default("APPROVED") // PENDING, APPROVED, REJECTED
+  tempPassword String? // Mật khẩu đăng ký ban đầu để Admin duyệt
   poolId    String
   pool      Pool      @relation(fields: [poolId], references: [id])
   tasks     Task[]    @relation("TaskAssignee")
@@ -37,6 +39,10 @@ model User {
   activities Activity[] @relation("UserActivities")
   votes     Vote[]     @relation("UserVotes")
   watching  TaskWatcher[] @relation("TaskWatchers")
+  createdRooms ChatRoom[] @relation("RoomCreator")
+  roomMemberships ChatRoomMember[] @relation("RoomMembers")
+  createdEvents MeetingEvent[] @relation("EventCreator")
+  eventAttendances MeetingAttendee[] @relation("EventAttendees")
 }
 
 // 3. Bảng quản lý thẻ việc Kanban (Trello Card Style — v2)
@@ -115,30 +121,89 @@ model Activity {
   task      Task     @relation("TaskActivities", fields: [taskId], references: [id], onDelete: Cascade)
 }
 
-// 4. Bảng quản lý tin nhắn Chat nội bộ
-model Message {
-  id          String   @id @default(cuid())
-  content     String?
-  type        String   @default("TEXT") // TEXT, IMAGE, FILE
-  fileUrl     String?
-  
-  poolId      String
-  pool        Pool     @relation(fields: [poolId], references: [id])
-  
-  senderId    String
-  sender      User     @relation("UserMessages", fields: [senderId], references: [id])
-  
-  createdAt   DateTime @default(now())
+// 4a. Phòng chat nhóm (như Zalo group – tập hợp theo dự án/nhóm việc)
+model ChatRoom {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  icon        String    @default("💬") // emoji icon
+  color       String    @default("#3b82f6") // accent color hex
+  isDefault   Boolean   @default(false)   // Kênh chung mặc định
+  createdAt   DateTime  @default(now())
+
+  createdById String
+  createdBy   User      @relation("RoomCreator", fields: [createdById], references: [id])
+
+  members     ChatRoomMember[]
+  messages    Message[]
 }
 
-// 5. Lịch họp vật lý (booking phòng họp)
+model ChatRoomMember {
+  roomId    String
+  userId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation("RoomMembers", fields: [userId], references: [id])
+  joinedAt  DateTime @default(now())
+  @@id([roomId, userId])
+}
+
+// 4b. Bảng quản lý tin nhắn Chat nội bộ
+model Message {
+  id          String    @id @default(cuid())
+  content     String?
+  type        String    @default("TEXT") // TEXT, IMAGE, FILE, TASK_REF
+  fileUrl     String?
+  taskRef     String?   // Tham chiếu đến Task ID nếu type=TASK_REF
+  
+  poolId      String
+  pool        Pool      @relation(fields: [poolId], references: [id])
+  
+  roomId      String?
+  room        ChatRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  
+  senderId    String
+  sender      User      @relation("UserMessages", fields: [senderId], references: [id])
+  
+  createdAt   DateTime  @default(now())
+}
+
+// 5. Lịch họp vật lý (booking phòng họp) - giữ lại cũ
 model Meeting {
   id           String   @id @default(cuid())
   topic        String
   startTime    DateTime
+  endTime      DateTime?
   recordingUrl String? 
   summary      String?  // Biên bản / ghi chú cuộc họp
 }
+
+// 5b. Sự kiện lịch họp (Calendar events – có thể đăng ký tham dự)
+model MeetingEvent {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  location     String?   // Địa điểm / link Meet / Zoom
+  startTime    DateTime
+  endTime      DateTime
+  color        String    @default("#3b82f6")
+  isRecurring  Boolean   @default(false)
+  maxAttendees Int?
+
+  createdById  String
+  createdBy    User      @relation("EventCreator", fields: [createdById], references: [id])
+  
+  attendees    MeetingAttendee[]
+  createdAt    DateTime  @default(now())
+}
+
+model MeetingAttendee {
+  eventId  String
+  userId   String
+  event    MeetingEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user     User         @relation("EventAttendees", fields: [userId], references: [id])
+  @@id([eventId, userId])
+}
+
 
 // 6. Bảng Bài viết sẵn sàng xuất bản (Publishing Bridge)
 model Post {
@@ -147,6 +212,7 @@ model Post {
   content     String?  @db.Text
   status      String   @default("DRAFT") // DRAFT, PENDING, PUBLISHED
   mediaUrls   String[]
+  feedback    String?  @db.Text
   
   authorId    String
   author      User     @relation("UserPosts", fields: [authorId], references: [id])

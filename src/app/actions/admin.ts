@@ -114,3 +114,21 @@ export async function updateMemberRole(callerId: string, targetUserId: string, n
     return { success: false };
   }
 }
+
+// Phê duyệt tài khoản PENDING -> APPROVED
+export async function approveUser(adminId: string, targetUserId: string) {
+  try {
+    await checkAdminStatus(adminId);
+    
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { status: "APPROVED" }
+    });
+    
+    revalidatePath("/workspace/admin");
+    return { success: true, message: "Đã phê duyệt tài khoản thành công!" };
+  } catch (error: any) {
+    console.error("Approve User Error:", error);
+    return { success: false, message: error.message || "Lỗi hệ thống!" };
+  }
+}

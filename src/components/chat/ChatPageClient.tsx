@@ -1,0 +1,293 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { MessageSquare, Hash, Users, Plus, Zap, Search, ChevronRight, LogIn, Settings } from "lucide-react";
+import RoomChatWindow from "./ChatWindow";
+import CreateRoomModal from "./CreateRoomModal";
+import RoomSettingsModal from "./RoomSettingsModal";
+import { joinChatRoom } from "@/app/actions/chat-rooms";
+import { prisma } from "@/utils/prisma";
+import toast from "react-hot-toast";
+
+interface Room {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  description?: string | null;
+  isDefault: boolean;
+  createdById: string;
+  members: any[];
+  messages: any[];
+}
+
+interface Props {
+  currentUser: any;
+  initialRooms: Room[];
+  initialMessages: any[];
+  defaultRoomId: string | null;
+  poolId: string;
+  allUsers: any[];
+}
+
+export default function ChatPageClient({
+  currentUser, initialRooms, initialMessages, defaultRoomId, poolId, allUsers
+}: Props) {
+  const [rooms, setRooms] = useState<Room[]>(initialRooms);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(defaultRoomId);
+  const [messages, setMessages] = useState<any[]>(initialMessages);
+  const [loadingRoom, setLoadingRoom] = useState(false);
+  const [search, setSearch] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const activeRoom = rooms.find(r => r.id === activeRoomId) || null;
+  const isMember = (room: Room) => room.members.some(m => m.userId === currentUser.id);
+
+  const switchRoom = async (roomId: string) => {
+    if (roomId === activeRoomId) return;
+    setLoadingRoom(true);
+    setActiveRoomId(roomId);
+    // Fetch messages for this room via API
+    try {
+      const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+    } catch {
+      setMessages([]);
+    }
+    setLoadingRoom(false);
+  };
+
+  const handleJoin = (roomId: string) => {
+    startTransition(async () => {
+      const res = await joinChatRoom(roomId, currentUser.id);
+      if (res.success) {
+        toast.success("Đã tham gia phòng!");
+        // Reload rooms
+        window.location.reload();
+      } else {
+        toast.error("Có lỗi khi tham gia");
+      }
+    });
+  };
+
+  const handleRoomCreated = (roomId: string) => {
+    // Reload page to get new room in list
+    window.location.href = `/workspace/chat`;
+  };
+
+  const filteredRooms = rooms.filter(r =>
+    r.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const myRooms = filteredRooms.filter(r => isMember(r));
+  const otherRooms = filteredRooms.filter(r => !isMember(r));
+
+  const lastMsg = (room: Room) => {
+    const m = room.messages?.[0];
+    if (!m) return null;
+    return {
+      text: m.content?.substring(0, 40) || "...",
+      sender: m.sender?.name?.split(" ").slice(-1)[0] || "",
+      time: new Date(m.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    };
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-6rem)] gap-0 animate-in fade-in duration-500">
+      {/* Page Header - Mobile only */}
+      <div className="flex items-center justify-between mb-4 md:hidden">
+        <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <MessageSquare size={20} className="text-blue-600" /> Chat
+        </h1>
+      </div>
+
+      <div className="flex flex-1 gap-4 min-h-0">
+        {/* ── Room Sidebar ── */}
+        <div className="hidden sm:flex flex-col w-64 lg:w-72 shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/60 dark:border-slate-800/60 rounded-[2rem] shadow-lg overflow-hidden">
+          {/* Sidebar header */}
+          <div className="p-4 border-b border-slate-100/60 dark:border-slate-800/60">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-widest flex items-center gap-1.5">
+                <MessageSquare size={13} className="text-blue-500" /> Phòng chat
+              </h2>
+              <CreateRoomModal userId={currentUser.id} allUsers={allUsers} onCreated={handleRoomCreated} />
+            </div>
+            {/* Search */}
+            <div className="relative">
+              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Tìm phòng..."
+                className="w-full pl-8 pr-3 py-2 text-xs font-bold bg-white/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+
+          {/* Room list */}
+          <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
+            {/* My Rooms */}
+            {myRooms.length > 0 && (
+              <div className="mb-2">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 py-1.5">Phòng của tôi</p>
+                {myRooms.map(room => {
+                  const last = lastMsg(room);
+                  const isActive = room.id === activeRoomId;
+                  return (
+                    <button
+                      key={room.id}
+                      onClick={() => switchRoom(room.id)}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-all mb-1 ${
+                        isActive
+                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                          : "hover:bg-slate-100/60 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${isActive ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"}`}
+                        style={!isActive ? { backgroundColor: room.color + "20" } : {}}>
+                        {room.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-black truncate ${isActive ? "text-white" : "text-slate-800 dark:text-slate-100"}`}>{room.name}</p>
+                        {last && (
+                          <p className={`text-[9px] truncate mt-0.5 ${isActive ? "text-white/70" : "text-slate-400"}`}>
+                            {last.sender}: {last.text}
+                          </p>
+                        )}
+                      </div>
+                      {last && (
+                        <span className={`text-[8px] font-bold shrink-0 ${isActive ? "text-white/60" : "text-slate-400"}`}>
+                          {last.time}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Other rooms to join */}
+            {otherRooms.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 py-1.5">Tham gia thêm</p>
+                {otherRooms.map(room => (
+                  <div key={room.id} className="flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-800/60 mb-1">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 bg-slate-50 dark:bg-slate-800"
+                      style={{ backgroundColor: room.color + "15" }}>
+                      {room.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-slate-700 dark:text-slate-300 truncate">{room.name}</p>
+                      <p className="text-[9px] text-slate-400">{room.members.length} thành viên</p>
+                    </div>
+                    <button
+                      onClick={() => handleJoin(room.id)}
+                      disabled={isPending}
+                      className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 text-[9px] font-black rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
+                    >
+                      <LogIn size={10} /> Tham gia
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {filteredRooms.length === 0 && (
+              <div className="flex flex-col items-center py-8 opacity-40 text-center">
+                <Hash size={24} className="text-slate-300 mb-2" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Không tìm thấy phòng</p>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar footer */}
+          <div className="p-3 border-t border-slate-100/60 dark:border-slate-800/60 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[10px] text-white font-black shrink-0">
+              {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" /> : currentUser.name?.substring(0,2).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{currentUser.name}</p>
+              <p className="text-[9px] text-slate-400 font-bold">{currentUser.role}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Chat Area ── */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {activeRoom ? (
+            <>
+              {/* Room header */}
+              <div className="flex items-center gap-3 mb-3 px-1">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shrink-0"
+                  style={{ backgroundColor: activeRoom.color + "20" }}>
+                  {activeRoom.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-black text-slate-800 dark:text-slate-100 truncate">{activeRoom.name}</h2>
+                  <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                    <Users size={9} /> {activeRoom.members.length} thành viên
+                    {activeRoom.description && <> · <span className="truncate">{activeRoom.description}</span></>}
+                  </p>
+                </div>
+                <div className="hidden lg:flex items-center gap-1">
+                  {activeRoom.members.slice(0, 4).map((m: any, i: number) => (
+                    <div key={i} className="w-7 h-7 rounded-xl border-2 border-white dark:border-slate-900 bg-gradient-to-tr from-blue-500 to-indigo-400 flex items-center justify-center text-[9px] text-white font-black -ml-1 first:ml-0 overflow-hidden"
+                      title={m.user?.name || ""}>
+                      {m.user?.avatarUrl ? <img src={m.user.avatarUrl} className="w-full h-full object-cover" alt="" /> : m.user?.name?.substring(0,2).toUpperCase()}
+                    </div>
+                  ))}
+                  {activeRoom.members.length > 4 && (
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] text-slate-500 font-black -ml-1">
+                      +{activeRoom.members.length - 4}
+                    </div>
+                  )}
+                </div>
+                <RoomSettingsModal room={activeRoom} currentUser={currentUser} allUsers={allUsers} />
+              </div>
+
+              {loadingRoom ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+                </div>
+              ) : (
+                <div className="flex-1">
+                  <RoomChatWindow
+                    initialMessages={messages}
+                    currentUser={currentUser}
+                    roomId={activeRoom.id}
+                    poolId={poolId}
+                    users={allUsers}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 opacity-60">
+              <div className="w-20 h-20 rounded-[2rem] bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-4xl">
+                💬
+              </div>
+              <div>
+                <p className="font-black text-slate-500 uppercase tracking-widest text-sm">Chọn một phòng để bắt đầu</p>
+                <p className="text-xs text-slate-400 mt-1">hoặc tạo phòng mới để cộng tác theo nhóm</p>
+              </div>
+              <CreateRoomModal userId={currentUser.id} allUsers={allUsers} onCreated={handleRoomCreated} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile: Room selector (horizontal scroll) */}
+      <div className="sm:hidden mt-3 -mx-1">
+        <div className="flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-hide">
+          {rooms.map(room => (
+            <button key={room.id} onClick={() => switchRoom(room.id)}
+              className={`flex flex-col items-center gap-1 shrink-0 p-2 rounded-2xl transition-all ${room.id === activeRoomId ? "bg-blue-600 text-white" : "bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400"}`}>
+              <div className="text-xl">{room.icon}</div>
+              <span className="text-[9px] font-black whitespace-nowrap">{room.name.split(" ")[0]}</span>
+            </button>
+          ))}
+          <CreateRoomModal userId={currentUser.id} allUsers={allUsers} onCreated={handleRoomCreated} />
+        </div>
+      </div>
+    </div>
+  );
+}

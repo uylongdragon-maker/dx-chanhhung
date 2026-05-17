@@ -41,6 +41,32 @@ export async function addChecklistItem(checklistId: string, text: string) {
 export async function toggleChecklistItem(itemId: string, isCompleted: boolean) {
   try {
     await prisma.checklistItem.update({ where: { id: itemId }, data: { isCompleted } });
+    
+    // Auto-update task to DONE if all checklists are completed
+    const item = await prisma.checklistItem.findUnique({ where: { id: itemId }, include: { checklist: true }});
+    if (item) {
+      const task = await prisma.task.findUnique({ 
+        where: { id: item.checklist.taskId },
+        include: { checklists: { include: { items: true } } }
+      });
+      if (task) {
+        let allCompleted = true;
+        let hasItems = false;
+        task.checklists.forEach(cl => {
+          cl.items.forEach(i => {
+            hasItems = true;
+            if (!i.isCompleted) allCompleted = false;
+          });
+        });
+        if (hasItems && allCompleted && task.status !== 'DONE') {
+          await prisma.task.update({ where: { id: task.id }, data: { status: 'DONE', completedAt: new Date() }});
+        } else if (hasItems && !allCompleted && task.status === 'DONE') {
+          // Revert back if unchecked
+          await prisma.task.update({ where: { id: task.id }, data: { status: 'DOING', completedAt: null }});
+        }
+      }
+    }
+
     revalidate();
     return { success: true };
   } catch (error: any) {
@@ -61,6 +87,16 @@ export async function deleteChecklistItem(itemId: string) {
 export async function deleteChecklist(checklistId: string) {
   try {
     await prisma.checklist.delete({ where: { id: checklistId } });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateChecklistTitle(checklistId: string, title: string) {
+  try {
+    await prisma.checklist.update({ where: { id: checklistId }, data: { title } });
     revalidate();
     return { success: true };
   } catch (error: any) {
@@ -93,7 +129,16 @@ export async function updateTaskDueDate(taskId: string, dueDate: string | null) 
 
 export async function updateTaskAssignment(taskId: string, assigneeId: string | null) {
   try {
-    await prisma.task.update({ where: { id: taskId }, data: { assigneeId } });
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const newStatus = (task && task.status === 'TODO' && assigneeId) ? 'DOING' : undefined;
+
+    await prisma.task.update({ 
+      where: { id: taskId }, 
+      data: { 
+        assigneeId,
+        ...(newStatus ? { status: newStatus } : {})
+      } 
+    });
     revalidate();
     return { success: true };
   } catch (error: any) {

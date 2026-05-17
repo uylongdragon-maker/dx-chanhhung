@@ -3,27 +3,30 @@
 import { prisma } from "@/utils/prisma";
 import { revalidatePath } from "next/cache";
 
+// Legacy action kept for backward compatibility
 export async function sendMessage(formData: FormData) {
   try {
     const content = formData.get("content") as string;
     const senderId = formData.get("senderId") as string;
-    const poolId = "pool-cdsch"; // Default pool for this prototype
+    const roomId = formData.get("roomId") as string | undefined;
 
     if (!content || !senderId) {
       return { success: false, error: "Content is required." };
     }
 
+    const pool = await prisma.pool.findFirst();
+    if (!pool) return { success: false, error: "No pool found." };
+
     await prisma.message.create({
       data: {
         content,
         senderId,
-        poolId,
+        poolId: pool.id,
+        roomId: roomId || null,
         type: "TEXT",
       },
     });
 
-    // We don't necessarily need revalidatePath for realtime chat, 
-    // as the client will listen to the stream, but it's good practice.
     revalidatePath("/workspace/chat");
     return { success: true };
   } catch (error) {

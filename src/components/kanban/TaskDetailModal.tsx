@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from "react";
-import { X, AlignLeft, CheckSquare, Paperclip, Clock, Trash2, Plus, MessageSquare, Send, Calendar, Loader2, Pin, User, Flag, Tag, Eye } from "lucide-react";
-import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem } from "@/app/workspace/kanban/card_actions";
+import { useState, useTransition, useEffect } from "react";
+import { X, AlignLeft, CheckSquare, Paperclip, Clock, Trash2, Plus, MessageSquare, Send, Calendar, Loader2, Pin, User, Flag, Tag, Eye, Pencil } from "lucide-react";
+import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle } from "@/app/workspace/kanban/card_actions";
 import { deleteTask, togglePoolItem } from "@/app/workspace/kanban/actions";
 import { createClient } from "@/utils/supabase/client";
 import toast from "react-hot-toast";
@@ -34,9 +34,14 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
   const [addingChecklistId, setAddingChecklistId] = useState<string | null>(null);
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
+  const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
   const [newItemText, setNewItemText] = useState("");
   const [localTask, setLocalTask] = useState(task);
   const supabase = createClient();
+
+  // Sync localTask when task prop changes from server
+  useEffect(() => { setLocalTask(task); }, [task]);
 
   const run = (fn: () => Promise<any>, successMsg?: string) => {
     startTransition(async () => {
@@ -55,7 +60,54 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
 
   const handleAddItem = (checklistId: string) => {
     if (!newItemText.trim()) return;
-    run(async () => { const r = await addChecklistItem(checklistId, newItemText); setNewItemText(""); setAddingChecklistId(null); return r; }, "Đã thêm mục");
+
+    // Optimistic update
+    const textToAdd = newItemText;
+    setLocalTask((prev: any) => ({
+      ...prev,
+      checklists: prev.checklists.map((cl: any) =>
+        cl.id === checklistId ? { ...cl, items: [...(cl.items || []), { id: `temp-${Date.now()}`, text: textToAdd, isCompleted: false }] } : cl
+      )
+    }));
+
+    run(async () => { 
+      const r = await addChecklistItem(checklistId, textToAdd); 
+      setNewItemText(""); 
+      setAddingChecklistId(null); 
+      return r; 
+    }, "Đã thêm mục");
+  };
+
+  const handleDeleteChecklist = (id: string) => {
+    toast.loading("Đang xóa checklist...");
+    run(async () => {
+      const r = await deleteChecklist(id);
+      toast.dismiss();
+      return r;
+    }, "Đã xóa checklist");
+  };
+
+  const handleUpdateChecklistTitle = (id: string) => {
+    if (!editingChecklistTitle.trim()) return;
+    run(async () => {
+      const r = await updateChecklistTitle(id, editingChecklistTitle);
+      setEditingChecklistId(null);
+      return r;
+    }, "Đã cập nhật tên");
+  };
+
+  const handleToggleItem = (clId: string, itemId: string, isCompleted: boolean) => {
+    // Optimistic update
+    setLocalTask((prev: any) => ({
+      ...prev,
+      checklists: prev.checklists.map((cl: any) => 
+        cl.id === clId ? {
+          ...cl,
+          items: cl.items.map((i: any) => i.id === itemId ? { ...i, isCompleted } : i)
+        } : cl
+      )
+    }));
+    run(() => toggleChecklistItem(itemId, isCompleted));
   };
 
   const handleComment = () => {
@@ -79,8 +131,15 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
   };
 
   const handleDelete = () => {
-    if (!confirm("Xoá thẻ việc này?")) return;
-    run(async () => { const r = await deleteTask(task.id); if (r.success) onClose(); return r; }, "Đã xoá");
+    toast.loading("Đang xoá...");
+    run(async () => { 
+      const r = await deleteTask(task.id); 
+      if (r.success) {
+        toast.dismiss();
+        onClose(); 
+      }
+      return r; 
+    }, "Đã xoá thẻ việc");
   };
 
   const handleTogglePool = () => {
@@ -101,13 +160,13 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
       <div
-        className="bg-white dark:bg-slate-900 w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-white/20 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300"
+        className="bg-white dark:bg-slate-900 w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-lg sm:rounded-lg shadow-2xl flex flex-col overflow-hidden border border-white/20 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start gap-4 shrink-0">
           <div className="flex gap-3 flex-1 min-w-0">
-            <div className="p-2.5 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 shrink-0">
+            <div className="p-2.5 bg-blue-500 text-white rounded-lg shadow-lg shadow-blue-500/20 shrink-0">
               <CheckSquare size={20} />
             </div>
             <div className="min-w-0">
@@ -128,9 +187,9 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
           <div className="md:col-span-8 flex flex-col gap-8">
 
             {/* Labels */}
-            {task.labels?.length > 0 && (
+            {localTask.labels?.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {task.labels.map((l: any) => (
+                {localTask.labels.map((l: any) => (
                   <div key={l.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full text-white text-[10px] font-black" style={{ backgroundColor: l.color }}>
                     <Tag size={10} />
                     {l.name}
@@ -148,14 +207,14 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
               </div>
               {isEditDesc ? (
                 <div className="ml-6">
-                  <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm min-h-[120px] focus:ring-2 focus:ring-blue-500/20 outline-none resize-none" placeholder="Mô tả chi tiết..." />
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm min-h-[120px] focus:ring-2 focus:ring-blue-500/20 outline-none resize-none" placeholder="Mô tả chi tiết..." />
                   <div className="flex gap-2 mt-2">
                     <button onClick={handleSaveDesc} disabled={isPending} className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Lưu</button>
                     <button onClick={() => setIsEditDesc(false)} className="px-4 py-1.5 text-slate-500 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Hủy</button>
                   </div>
                 </div>
               ) : (
-                <div onClick={() => setIsEditDesc(true)} className="ml-6 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm text-slate-600 dark:text-slate-400 min-h-[80px]">
+                <div onClick={() => setIsEditDesc(true)} className="ml-6 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm text-slate-600 dark:text-slate-400 min-h-[80px] break-words whitespace-pre-wrap">
                   {description || <span className="italic text-slate-400">Chưa có mô tả. Nhấn để thêm...</span>}
                 </div>
               )}
@@ -180,13 +239,29 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
               )}
 
               <div className="ml-6 flex flex-col gap-4">
-                {task.checklists?.map((cl: any) => (
-                  <div key={cl.id} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl">
-                    <h4 className="font-bold text-sm text-blue-600 mb-3">{cl.title}</h4>
+                {localTask.checklists?.map((cl: any) => (
+                  <div key={cl.id} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg">
+                    <div className="flex justify-between items-start mb-3 group/cl">
+                      {editingChecklistId === cl.id ? (
+                        <div className="flex gap-2 flex-1">
+                          <input autoFocus value={editingChecklistTitle} onChange={e => setEditingChecklistTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleUpdateChecklistTitle(cl.id)} className="flex-1 px-2 py-1 text-sm font-bold text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20" />
+                          <button onClick={() => handleUpdateChecklistTitle(cl.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><CheckSquare size={14}/></button>
+                          <button onClick={() => setEditingChecklistId(null)} className="text-slate-400 hover:bg-slate-100 p-1 rounded"><X size={14}/></button>
+                        </div>
+                      ) : (
+                        <>
+                          <h4 className="font-bold text-sm text-blue-600 break-words flex-1">{cl.title}</h4>
+                          <div className="opacity-0 group-hover/cl:opacity-100 flex items-center gap-1 shrink-0 transition-opacity">
+                            <button onClick={() => { setEditingChecklistId(cl.id); setEditingChecklistTitle(cl.title); }} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 rounded transition-colors"><Pencil size={12} /></button>
+                            <button onClick={() => handleDeleteChecklist(cl.id)} className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-slate-700 rounded transition-colors"><Trash2 size={12} /></button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <div className="flex flex-col gap-2">
                       {cl.items?.map((item: any) => (
                         <div key={item.id} className="flex items-center gap-3 group">
-                          <input type="checkbox" checked={item.isCompleted} onChange={e => run(() => toggleChecklistItem(item.id, e.target.checked))} className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 cursor-pointer" />
+                          <input type="checkbox" checked={item.isCompleted} onChange={e => handleToggleItem(cl.id, item.id, e.target.checked)} className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 cursor-pointer" />
                           <span className={`text-sm flex-1 ${item.isCompleted ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>{item.text}</span>
                           <button onClick={() => run(() => deleteChecklistItem(item.id))} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all">
                             <Trash2 size={12} />
@@ -207,8 +282,8 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
                 ))}
 
                 <div className="flex gap-2">
-                  <input value={newChecklistTitle} onChange={e => setNewChecklistTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddChecklist()} className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-400 transition-colors" placeholder="+ Thêm checklist mới..." />
-                  {newChecklistTitle && <button onClick={handleAddChecklist} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">Tạo</button>}
+                  <input value={newChecklistTitle} onChange={e => setNewChecklistTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddChecklist()} className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-blue-400 transition-colors" placeholder="+ Thêm checklist mới..." />
+                  {newChecklistTitle && <button onClick={handleAddChecklist} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg">Tạo</button>}
                 </div>
               </div>
             </section>
@@ -221,19 +296,19 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
               </div>
               <div className="ml-6 flex flex-col gap-4">
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold shrink-0">
                     {currentUser?.name?.substring(0,2).toUpperCase() || 'ME'}
                   </div>
                   <div className="flex-1 relative">
-                    <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleComment(); }}} placeholder="Viết bình luận... (Enter để gửi)" className="w-full p-3 pr-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none" rows={2} />
-                    <button onClick={handleComment} disabled={!newComment.trim() || isPending} className="absolute right-2.5 bottom-2.5 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40">
+                    <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleComment(); }}} placeholder="Viết bình luận... (Enter để gửi)" className="w-full p-3 pr-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none" rows={2} />
+                    <button onClick={handleComment} disabled={!newComment.trim() || isPending} className="absolute right-2.5 bottom-2.5 p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-40">
                       <Send size={12} />
                     </button>
                   </div>
                 </div>
-                {task.activities?.map((act: any) => (
+                {localTask.activities?.map((act: any) => (
                   <div key={act.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-500 overflow-hidden shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-500 overflow-hidden shrink-0">
                       {act.user?.avatarUrl ? <img src={act.user.avatarUrl} className="w-full h-full object-cover" alt="" /> : act.user?.name?.substring(0,2).toUpperCase()}
                     </div>
                     <div>
@@ -269,23 +344,36 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
             {/* Assignee */}
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><User size={10} /> Người phụ trách</p>
-              <select defaultValue={task.assigneeId || ""} onChange={e => run(() => updateTaskAssignment(task.id, e.target.value || null), "Đã cập nhật người phụ trách")} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none">
+              <select value={localTask.assigneeId || ""} onChange={e => {
+                const newAssigneeId = e.target.value || null;
+                setLocalTask((prev: any) => ({ ...prev, assigneeId: newAssigneeId }));
+                run(() => updateTaskAssignment(localTask.id, newAssigneeId), "Đã cập nhật người phụ trách");
+              }} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none">
                 <option value="">-- Chưa phân công --</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
+
+              {localTask.assigneeId !== currentUser?.id && (
+                <button onClick={() => {
+                  setLocalTask((prev: any) => ({ ...prev, assigneeId: currentUser.id }));
+                  run(() => updateTaskAssignment(localTask.id, currentUser.id), "Đã nhận việc");
+                }} className="w-full mt-2 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                  Nhận việc này
+                </button>
+              )}
             </div>
 
             {/* Due Date */}
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Calendar size={10} /> Hạn chót</p>
-              <input type="datetime-local" defaultValue={task.dueDate ? new Date(task.dueDate).toISOString().slice(0,16) : ''} onChange={e => run(() => updateTaskDueDate(task.id, e.target.value || null), "Đã cập nhật hạn chót")} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
+              <input type="datetime-local" defaultValue={task.dueDate ? new Date(task.dueDate).toISOString().slice(0,16) : ''} onChange={e => run(() => updateTaskDueDate(task.id, e.target.value || null), "Đã cập nhật hạn chót")} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none" />
             </div>
 
             {/* Labels */}
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Tag size={10} /> Labels</p>
               <div className="relative">
-                <button onClick={() => setShowLabelPicker(!showLabelPicker)} className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 hover:border-blue-400 transition-colors">
+                <button onClick={() => setShowLabelPicker(!showLabelPicker)} className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 hover:border-blue-400 transition-colors">
                   <Plus size={12} /> Thêm label
                 </button>
                 {showLabelPicker && (
@@ -302,7 +390,7 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
             </div>
 
             {/* Pin to Pool */}
-            <button onClick={handleTogglePool} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${localTask.isPoolItem ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
+            <button onClick={handleTogglePool} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all border ${localTask.isPoolItem ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
               <Pin size={14} className={localTask.isPoolItem ? 'rotate-45' : ''} />
               {localTask.isPoolItem ? 'Đã ghim vào Pool chung' : 'Ghim vào Pool chung'}
             </button>
@@ -310,16 +398,16 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
             {/* Attachment */}
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Paperclip size={10} /> Đính kèm</p>
-              <button onClick={() => document.getElementById('fileUpload-modal')?.click()} disabled={isUploading} className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 hover:border-blue-400 transition-colors disabled:opacity-50">
+              <button onClick={() => document.getElementById('fileUpload-modal')?.click()} disabled={isUploading} className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 hover:border-blue-400 transition-colors disabled:opacity-50">
                 {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
                 {isUploading ? 'Đang tải...' : 'Tải tệp lên'}
               </button>
               <input type="file" id="fileUpload-modal" className="hidden" onChange={handleFileUpload} />
 
-              {task.attachments?.length > 0 && (
+              {localTask.attachments?.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1.5">
-                  {task.attachments.map((url: string, i: number) => (
-                    <a key={i} href={url} target="_blank" className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:shadow-sm transition-all">
+                  {localTask.attachments.map((url: string, i: number) => (
+                    <a key={i} href={url} target="_blank" className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg hover:shadow-sm transition-all">
                       <div className="w-8 h-8 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-blue-500 shrink-0">
                         <Paperclip size={14} />
                       </div>
@@ -331,7 +419,7 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
             </div>
 
             {/* Delete */}
-            <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-200 mt-auto">
+            <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors border border-transparent hover:border-rose-200 mt-auto">
               <Trash2 size={14} /> Xoá thẻ việc
             </button>
           </div>
