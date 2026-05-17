@@ -124,8 +124,9 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
     const channel = supabase
       .channel(`chat:room:${roomId}`)
       .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "Message", filter: `roomId=eq.${roomId}` },
+        { event: "INSERT", schema: "public", table: "Message" },
         (payload) => {
+          if (payload.new.roomId !== roomId) return;
           if (payload.new.senderId === currentUser.id) return;
           const senderUser = users?.find(u => u.id === payload.new.senderId);
           const sender = senderUser ? { name: senderUser.name, avatarUrl: senderUser.avatarUrl } : null;
@@ -134,7 +135,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [roomId, currentUser.id, users]);
+  }, [roomId, currentUser.id, users, setMessages]);
 
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -35,7 +35,6 @@ export default function ChatPageClient({
 }: Props) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(defaultRoomId);
-  const [messages, setMessages] = useState<any[]>(initialMessages);
   const [loadingRoom, setLoadingRoom] = useState(false);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -48,44 +47,42 @@ export default function ChatPageClient({
   const activeRoom = rooms.find(r => r.id === activeRoomId) || null;
   const isMember = (room: Room) => room.members.some(m => m.userId === currentUser.id);
 
-  // Sync current active messages list back to the memory cache on any change
-  useEffect(() => {
-    if (activeRoomId && messages) {
-      setMessageCache(prev => ({
-        ...prev,
-        [activeRoomId]: messages
-      }));
-    }
-  }, [messages, activeRoomId]);
+  // Derive messages from messageCache based on activeRoomId
+  const messages = activeRoomId ? (messageCache[activeRoomId] || []) : [];
+
+  // setMessages acts as a wrapper that updates the activeRoomId entry in messageCache state directly!
+  const setMessages = (val: any[] | ((prev: any[]) => any[])) => {
+    if (!activeRoomId) return;
+    setMessageCache(prev => {
+      const current = prev[activeRoomId] || [];
+      const updated = typeof val === "function" ? val(current) : val;
+      return { ...prev, [activeRoomId]: updated };
+    });
+  };
 
   const switchRoom = async (roomId: string) => {
     if (roomId === activeRoomId) return;
 
-    if (messageCache[roomId]) {
-      // 1. Instantly display cached messages (Zero delay/Zero spinner!)
-      setMessages(messageCache[roomId]);
-      setActiveRoomId(roomId);
+    setActiveRoomId(roomId);
 
-      // Background silent refetch to refresh any missed messages
+    if (messageCache[roomId]) {
+      // Background silent refetch to refresh any missed messages under-the-hood
       try {
         const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
         const data = await res.json();
         const latestMsgs = data.messages || [];
         setMessageCache(prev => ({ ...prev, [roomId]: latestMsgs }));
-        setMessages(latestMsgs);
       } catch {}
     } else {
-      // 2. Slow block-spinner path only for unvisited rooms
+      // Slow block-spinner path only for unvisited rooms
       setLoadingRoom(true);
-      setActiveRoomId(roomId);
       try {
         const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
         const data = await res.json();
         const latestMsgs = data.messages || [];
         setMessageCache(prev => ({ ...prev, [roomId]: latestMsgs }));
-        setMessages(latestMsgs);
       } catch {
-        setMessages([]);
+        setMessageCache(prev => ({ ...prev, [roomId]: [] }));
       }
       setLoadingRoom(false);
     }
