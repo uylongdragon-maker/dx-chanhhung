@@ -5,8 +5,9 @@ export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) return NextResponse.json({ newMessages: [], newTasks: [], upcomingMeetings: [], overdueTasks: [] });
 
+  const sinceParam = req.nextUrl.searchParams.get("since");
   const now = new Date();
-  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60_000);
+  const sinceDate = sinceParam ? new Date(sinceParam) : new Date(now.getTime() - 2 * 60_000);
   const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60_000);
 
   try {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
       prisma.message.findMany({
         where: {
           senderId: { not: userId },
-          createdAt: { gte: new Date(now.getTime() - 2 * 60_000) },
+          createdAt: { gte: sinceDate },
           room: {
             members: { some: { userId } }
           }
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
         where: {
           type: "CREATED",
           task: { assigneeId: userId },
-          createdAt: { gte: new Date(now.getTime() - 2 * 60_000) }
+          createdAt: { gte: sinceDate }
         },
         include: { task: { select: { id: true, title: true } } },
         take: 5

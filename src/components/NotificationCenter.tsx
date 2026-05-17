@@ -30,10 +30,32 @@ export default function NotificationCenter({ userId }: { userId: string }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const unread = notifs.filter(n => !n.read).length;
 
+  const lastCheckRef = useRef<number>(Date.now() - 120_000); // init to 2 mins ago
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
   // Init from localStorage
   useEffect(() => {
     setNotifs(getStoredNotifs());
     seenRef.current = getSeenItems();
+
+    // Unlock AudioContext on first user interaction to bypass browser autoplay blocks
+    const unlockAudio = () => {
+      if (!audioCtxRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtxRef.current = new AudioContextClass();
+        }
+      }
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+    };
+    document.addEventListener("click", unlockAudio, { once: true });
+    document.addEventListener("touchstart", unlockAudio, { once: true });
+    return () => {
+      document.removeEventListener("click", unlockAudio);
+      document.removeEventListener("touchstart", unlockAudio);
+    };
   }, []);
 
   const saveNotifs = (n: Notification[]) => {
@@ -43,9 +65,10 @@ export default function NotificationCenter({ userId }: { userId: string }) {
 
   const playNotificationSound = () => {
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -59,7 +82,7 @@ export default function NotificationCenter({ userId }: { userId: string }) {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.15);
     } catch (e) {
-      // ignore audio context errors if blocked by browser policy
+      // ignore audio errors
     }
   };
 
@@ -71,8 +94,6 @@ export default function NotificationCenter({ userId }: { userId: string }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
-
-    playNotificationSound();
 
     // Browser push notification if tab not focused
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
@@ -93,15 +114,20 @@ export default function NotificationCenter({ userId }: { userId: string }) {
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/notifications?userId=${userId}`);
+        const since = new Date(lastCheckRef.current).toISOString();
+        const res = await fetch(`/api/notifications?userId=${userId}&since=${encodeURIComponent(since)}`);
+        lastCheckRef.current = Date.now(); // update check time immediately
+        
         if (!res.ok) return;
         const data = await res.json();
+        let added = false;
 
         // New messages
         for (const msg of data.newMessages || []) {
           const key = `msg-${msg.id}`;
           if (seenRef.current.has(key)) continue;
           seenRef.current.add(key);
+          added = true;
           addNotif({
             type: "message",
             title: `💬 Tin nhắn mới trong ${msg.roomName}`,
@@ -115,6 +141,7 @@ export default function NotificationCenter({ userId }: { userId: string }) {
           const key = `task-${task.id}`;
           if (seenRef.current.has(key)) continue;
           seenRef.current.add(key);
+          added = true;
           addNotif({
             type: "task",
             title: `✅ Nhiệm vụ mới được giao`,
@@ -128,6 +155,7 @@ export default function NotificationCenter({ userId }: { userId: string }) {
           const key = `meet-${meeting.id}`;
           if (seenRef.current.has(key)) continue;
           seenRef.current.add(key);
+          added = true;
           addNotif({
             type: "meeting",
             title: `📅 Cuộc họp sắp bắt đầu`,
@@ -141,6 +169,7 @@ export default function NotificationCenter({ userId }: { userId: string }) {
           const key = `overdue-${task.id}-${new Date().toDateString()}`;
           if (seenRef.current.has(key)) continue;
           seenRef.current.add(key);
+          added = true;
           addNotif({
             type: "reminder",
             title: `⚠️ Công việc quá hạn`,
@@ -149,13 +178,17 @@ export default function NotificationCenter({ userId }: { userId: string }) {
           });
         }
 
+        if (added) {
+           playNotificationSound();
+        }
+
         // Persist seenItems
         localStorage.setItem(SEEN_KEY, JSON.stringify([...seenRef.current].slice(-500)));
       } catch { /* silent */ }
     };
 
     poll(); // immediate first run
-    const interval = setInterval(poll, 30_000); // every 30s
+    const interval = setInterval(poll, 10_000); // every 10s
     return () => clearInterval(interval);
   }, [userId, addNotif]);
 
