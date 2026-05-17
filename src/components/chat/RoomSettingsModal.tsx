@@ -84,7 +84,7 @@ export default function RoomSettingsModal({ room, currentUser, allUsers }: Props
 
             <div className="p-5 overflow-y-auto">
               {/* Add Members Section */}
-              {!isDefault && nonMembers.length > 0 && (
+              {!isDefault && isCreator && nonMembers.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><UserPlus size={12} /> Thêm thành viên</h4>
                   <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">

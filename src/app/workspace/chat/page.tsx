@@ -37,24 +37,12 @@ export default async function ChatPage() {
     }),
     prisma.user.findMany({ select: { id: true, name: true, avatarUrl: true } })
   ]);
-
-  // Get messages for the first room by default
-  const defaultRoom = myRooms[0] || null;
-  const initialMessages = defaultRoom
-    ? await prisma.message.findMany({
-        where: { roomId: defaultRoom.id },
-        orderBy: { createdAt: "asc" },
-        take: 60,
-        include: { sender: { select: { name: true, avatarUrl: true } } }
-      })
-    : [];
-
   return (
     <ChatPageClient
       currentUser={currentUser}
       initialRooms={myRooms}
-      initialMessages={initialMessages}
-      defaultRoomId={defaultRoom?.id || null}
+      initialMessages={[]}
+      defaultRoomId={null}
       poolId={pool.id}
       allUsers={allUsers}
     />
