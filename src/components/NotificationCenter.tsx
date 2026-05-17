@@ -41,6 +41,28 @@ export default function NotificationCenter({ userId }: { userId: string }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(n.slice(-50))); // keep last 50
   };
 
+  const playNotificationSound = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (e) {
+      // ignore audio context errors if blocked by browser policy
+    }
+  };
+
   const addNotif = useCallback((notif: Omit<Notification, "id" | "createdAt" | "read">) => {
     const id = `${notif.type}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const newNotif: Notification = { ...notif, id, createdAt: Date.now(), read: false };
@@ -49,6 +71,8 @@ export default function NotificationCenter({ userId }: { userId: string }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
+
+    playNotificationSound();
 
     // Browser push notification if tab not focused
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
@@ -189,7 +213,7 @@ export default function NotificationCenter({ userId }: { userId: string }) {
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] shadow-2xl z-[300] overflow-hidden animate-in slide-in-from-top-2 duration-200">
+        <div className="absolute right-[-1rem] sm:right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-[320px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] shadow-2xl z-[300] overflow-hidden animate-in slide-in-from-top-2 duration-200">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">

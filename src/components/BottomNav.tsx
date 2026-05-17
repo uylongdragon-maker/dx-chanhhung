@@ -19,7 +19,6 @@ import {
   LogOut, 
   ChevronRight
 } from 'lucide-react'
-import NotificationCenter from './NotificationCenter'
 
 export default function BottomNav({ user }: { user: any }) {
   const pathname = usePathname();
@@ -178,10 +177,6 @@ export default function BottomNav({ user }: { user: any }) {
 
       {/* 3. CORE BOTTOM NAVIGATION BAR */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${navVisible ? 'translate-y-0' : 'translate-y-full'}`}>
-        {/* Notification bell floating above bottom nav */}
-        <div className="absolute -top-14 right-4">
-          <NotificationCenter userId={user?.id || ""} />
-        </div>
         <div className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl border-t border-slate-200/50 dark:border-slate-800/60 shadow-[0_-20px_60px_rgba(0,0,0,0.08)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex justify-around items-center px-2 pt-2 pb-3 relative">
             {primaryItems.map((item) => {
