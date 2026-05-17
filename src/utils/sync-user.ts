@@ -1,6 +1,9 @@
-import { prisma } from './prisma'
+import { prisma } from './prisma';
+import { cache } from 'react';
 
-export async function syncUser(supabaseUser: any) {
+// cache() memoizes per-request — so within a single render tree (layout + page)
+// syncUser is only called ONCE even if imported by multiple components
+export const syncUser = cache(async (supabaseUser: any) => {
   if (!supabaseUser) return null;
 
   // 1. Kiểm tra xem thành viên này đã có trong database hệ thống chưa
@@ -11,7 +14,6 @@ export async function syncUser(supabaseUser: any) {
   if (existingUser) return existingUser;
 
   // 2. Nếu chưa có (đăng nhập lần đầu), tự động tạo hồ sơ mới
-  // Tìm hoặc tạo Pool mặc định cho Ban Truyền thông Chánh Hưng
   let pool = await prisma.pool.findFirst();
   if (!pool) {
     pool = await prisma.pool.create({
@@ -28,4 +30,5 @@ export async function syncUser(supabaseUser: any) {
       poolId: pool.id
     }
   });
-}
+});
+

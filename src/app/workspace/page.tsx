@@ -8,7 +8,7 @@ import { Calendar, CheckSquare, Clock, AlertTriangle, Users, ChevronRight, Zap, 
 import { format, isToday, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { vi } from "date-fns/locale";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30; // Cache for 30s — fast navigation, fresh enough data
 
 export default async function WorkspaceDashboard() {
   const supabase = await createClient();

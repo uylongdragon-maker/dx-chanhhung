@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import ChatPageClient from "@/components/chat/ChatPageClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 10;
 
 export default async function ChatPage() {
   const supabase = await createClient();

@@ -5,7 +5,7 @@ import { bookMeetingRoom, manualApprove } from '@/app/actions/meeting'
 import { redirect } from 'next/navigation'
 import MeetingCalendar from '@/components/meetings/MeetingCalendar'
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function MeetingsPage() {
   const supabase = await createClient()
