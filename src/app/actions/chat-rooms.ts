@@ -93,7 +93,6 @@ export async function sendRoomMessage(
         taskRef: taskRef || null,
       },
     });
-    revalidatePath("/workspace/chat");
     return { success: true, messageId: message.id };
   } catch (error: any) {
     return { success: false, error: error.message };

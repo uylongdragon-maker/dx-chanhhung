@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { MessageSquare, Hash, Users, Plus, Zap, Search, ChevronRight, LogIn, Settings } from "lucide-react";
 import RoomChatWindow from "./ChatWindow";
 import CreateRoomModal from "./CreateRoomModal";
@@ -40,22 +40,55 @@ export default function ChatPageClient({
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // Client-side message caching to eliminate loading spinners on revisit
+  const [messageCache, setMessageCache] = useState<Record<string, any[]>>({
+    [defaultRoomId || ""]: initialMessages
+  });
+
   const activeRoom = rooms.find(r => r.id === activeRoomId) || null;
   const isMember = (room: Room) => room.members.some(m => m.userId === currentUser.id);
 
+  // Sync current active messages list back to the memory cache on any change
+  useEffect(() => {
+    if (activeRoomId && messages) {
+      setMessageCache(prev => ({
+        ...prev,
+        [activeRoomId]: messages
+      }));
+    }
+  }, [messages, activeRoomId]);
+
   const switchRoom = async (roomId: string) => {
     if (roomId === activeRoomId) return;
-    setLoadingRoom(true);
-    setActiveRoomId(roomId);
-    // Fetch messages for this room via API
-    try {
-      const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
-      const data = await res.json();
-      setMessages(data.messages || []);
-    } catch {
-      setMessages([]);
+
+    if (messageCache[roomId]) {
+      // 1. Instantly display cached messages (Zero delay/Zero spinner!)
+      setMessages(messageCache[roomId]);
+      setActiveRoomId(roomId);
+
+      // Background silent refetch to refresh any missed messages
+      try {
+        const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
+        const data = await res.json();
+        const latestMsgs = data.messages || [];
+        setMessageCache(prev => ({ ...prev, [roomId]: latestMsgs }));
+        setMessages(latestMsgs);
+      } catch {}
+    } else {
+      // 2. Slow block-spinner path only for unvisited rooms
+      setLoadingRoom(true);
+      setActiveRoomId(roomId);
+      try {
+        const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
+        const data = await res.json();
+        const latestMsgs = data.messages || [];
+        setMessageCache(prev => ({ ...prev, [roomId]: latestMsgs }));
+        setMessages(latestMsgs);
+      } catch {
+        setMessages([]);
+      }
+      setLoadingRoom(false);
     }
-    setLoadingRoom(false);
   };
 
   const handleJoin = (roomId: string) => {
@@ -259,7 +292,9 @@ export default function ChatPageClient({
               ) : (
                 <div className="flex-1">
                   <RoomChatWindow
-                    initialMessages={messages}
+                    key={activeRoom.id}
+                    messages={messages}
+                    setMessages={setMessages}
                     currentUser={currentUser}
                     roomId={activeRoom.id}
                     poolId={poolId}

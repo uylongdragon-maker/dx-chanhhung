@@ -18,7 +18,8 @@ interface Message {
 }
 
 interface Props {
-  initialMessages: Message[];
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   currentUser: any;
   roomId: string;
   poolId: string;
@@ -102,8 +103,7 @@ function QuickTaskPanel({
   );
 }
 
-export default function RoomChatWindow({ initialMessages, currentUser, roomId, poolId, users = [] }: Props) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+export default function RoomChatWindow({ messages, setMessages, currentUser, roomId, poolId, users = [] }: Props) {
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
@@ -125,16 +125,16 @@ export default function RoomChatWindow({ initialMessages, currentUser, roomId, p
       .channel(`chat:room:${roomId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "Message", filter: `roomId=eq.${roomId}` },
-        async (payload) => {
+        (payload) => {
           if (payload.new.senderId === currentUser.id) return;
-          const { data: sender } = await supabase
-            .from("User").select("name, avatarUrl").eq("id", payload.new.senderId).single();
+          const senderUser = users?.find(u => u.id === payload.new.senderId);
+          const sender = senderUser ? { name: senderUser.name, avatarUrl: senderUser.avatarUrl } : null;
           setMessages(prev => [...prev, { ...payload.new as any, sender }]);
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [roomId, currentUser.id]);
+  }, [roomId, currentUser.id, users]);
 
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();
