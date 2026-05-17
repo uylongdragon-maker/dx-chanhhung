@@ -119,7 +119,11 @@ export default function RoomSettingsModal({ room, currentUser, allUsers }: Props
                         <div>
                           <p className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1">
                             {m.user?.name}
-                            {m.userId === room.createdById && <Shield size={10} className="text-blue-500" title="Trưởng phòng" />}
+                            {m.userId === room.createdById && (
+                              <span title="Trưởng phòng" className="inline-flex">
+                                <Shield size={10} className="text-blue-500" />
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
