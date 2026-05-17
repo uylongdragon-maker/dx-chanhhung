@@ -99,7 +99,9 @@ export default function ChatPageClient({
         <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
           <MessageSquare size={20} className="text-blue-600" /> Chat
         </h1>
-      </      <div className="flex flex-grow gap-4 min-h-0 relative">
+      </div>
+
+      <div className="flex flex-grow gap-4 min-h-0 relative">
         {/* ── Room Sidebar ── */}
         <div className={`${activeRoomId ? 'hidden sm:flex' : 'flex w-full sm:w-64 lg:w-72'} flex-col shrink-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/60 dark:border-slate-800/60 rounded-[2rem] shadow-lg overflow-hidden`}>
           {/* Sidebar header */}
