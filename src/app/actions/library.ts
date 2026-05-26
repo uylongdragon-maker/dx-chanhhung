@@ -61,3 +61,21 @@ export async function deleteLibraryItem(id: string) {
     return { success: false, error: "Không thể xóa tài liệu khỏi thư viện." };
   }
 }
+
+// Chuyển đổi file DOCX sang HTML để đọc trực tuyến không cần tải về
+export async function renderDocxToHtml(base64Data: string) {
+  try {
+    const mammoth = require("mammoth");
+    // Loại bỏ prefix data url nếu có
+    const base64Clean = base64Data.includes("base64,") 
+      ? base64Data.split("base64,")[1] 
+      : base64Data;
+
+    const buffer = Buffer.from(base64Clean, "base64");
+    const result = await mammoth.convertToHtml({ buffer });
+    return { success: true, html: result.value };
+  } catch (error: any) {
+    console.error("Lỗi khi chuyển đổi docx sang HTML:", error);
+    return { success: false, error: "Không thể hiển thị tài liệu Word trực tuyến." };
+  }
+}

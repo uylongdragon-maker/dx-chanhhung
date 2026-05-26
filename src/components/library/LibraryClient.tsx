@@ -5,7 +5,7 @@ import {
   FolderOpen, FileText, Download, Search, Plus, Trash2, Edit3, X, 
   Sparkles, Upload, Loader2, Play, Lock, Eye, Check, AlertTriangle, Video, ExternalLink
 } from "lucide-react";
-import { saveLibraryItem, deleteLibraryItem } from "@/app/actions/library";
+import { saveLibraryItem, deleteLibraryItem, renderDocxToHtml } from "@/app/actions/library";
 import toast from "react-hot-toast";
 
 interface LibraryItem {
@@ -71,6 +71,8 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
   // Modal / Interaction states
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
   const [viewingDoc, setViewingDoc] = useState<{ url: string; type: string; title: string } | null>(null);
+  const [docxHtml, setDocxHtml] = useState<string | null>(null);
+  const [loadingDocx, setLoadingDocx] = useState(false);
   
   // Password prompt states
   const [passwordPrompt, setPasswordPrompt] = useState<{
@@ -191,18 +193,35 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
   };
 
   // Viewing files using specialized view links
-  const triggerViewDoc = (item: LibraryItem) => {
+  const triggerViewDoc = async (item: LibraryItem) => {
     const fileUrl = item.fileUrl;
     if (!fileUrl) return;
 
     const fileType = getFileType(fileUrl);
     
-    // For local base64 files, render directly in iframe. For Docx, if it's base64, we can render using local tools or give download option.
     setViewingDoc({
       url: fileUrl,
       type: fileType,
       title: item.title
     });
+
+    if (fileType === "DOCX" && fileUrl.startsWith("data:")) {
+      setLoadingDocx(true);
+      setDocxHtml(null);
+      try {
+        const res = await renderDocxToHtml(fileUrl);
+        if (res.success && res.html) {
+          setDocxHtml(res.html);
+        } else {
+          toast.error(res.error || "Không thể hiển thị tài liệu Word trực tuyến.");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Gặp lỗi khi xử lý tài liệu.");
+      } finally {
+        setLoadingDocx(false);
+      }
+    }
   };
 
   const triggerDownloadDoc = (item: LibraryItem) => {
@@ -586,7 +605,10 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
                 <h3 className="font-black text-slate-800 dark:text-slate-100 text-xs md:text-sm uppercase tracking-tight line-clamp-1">{viewingDoc.title}</h3>
               </div>
               <button 
-                onClick={() => setViewingDoc(null)}
+                onClick={() => {
+                  setViewingDoc(null);
+                  setDocxHtml(null);
+                }}
                 className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
               >
                 <X size={18} />
@@ -603,27 +625,49 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
                   title="PDF Viewer"
                 />
               ) : viewingDoc.type === "DOCX" ? (
-                /* DOCX Specialized Displayer. If it's a URL, use Office View Link, otherwise render as text/fallback */
+                /* DOCX Specialized Displayer. If it's a base64 string, render parsed HTML, otherwise use Office View Link */
                 viewingDoc.url.startsWith("data:") ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/10 p-6 text-center">
-                    <FileText size={48} className="text-[#7360f2] mb-3 animate-pulse" />
-                    <h4 className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase mb-2">Tài liệu Word dạng File đính kèm</h4>
-                    <p className="text-[11px] text-slate-400 font-bold max-w-sm mb-4 leading-normal">
-                      Để đọc trực tuyến Word (.docx) mượt mà nhất, thư ký nên ghim link liên kết trực tiếp (Drive/Office) hoặc tải tệp xuống để mở trên máy tính.
-                    </p>
-                    <button 
-                      onClick={() => {
-                        const link = document.createElement("a");
-                        link.href = viewingDoc.url;
-                        link.download = viewingDoc.title;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                      className="px-6 py-3 bg-[#7360f2] hover:bg-[#5f4de0] text-white text-xs font-black uppercase rounded-2xl shadow-lg transition-transform active:scale-95"
-                    >
-                      Tải tệp xuống ngay
-                    </button>
+                  <div className="w-full h-full overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/10 p-6 md:p-8">
+                    {loadingDocx ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center min-h-[300px]">
+                        <Loader2 className="animate-spin text-[#7360f2] mb-3" size={32} />
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">Đang tải tài liệu Word...</p>
+                      </div>
+                    ) : docxHtml ? (
+                      <div className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 font-medium leading-relaxed docx-preview-content">
+                        <style jsx global>{`
+                          .docx-preview-content h1 { font-size: 1.5rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #7360f2; text-transform: uppercase; }
+                          .docx-preview-content h2 { font-size: 1.25rem; font-weight: 800; margin-top: 1.25rem; margin-bottom: 0.5rem; border-left: 3px solid #7360f2; padding-left: 8px; }
+                          .docx-preview-content h3 { font-size: 1.1rem; font-weight: 700; margin-top: 1rem; margin-bottom: 0.5rem; }
+                          .docx-preview-content p { font-size: 0.85rem; margin-bottom: 0.75rem; line-height: 1.6; text-align: justify; }
+                          .docx-preview-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; font-size: 0.85rem; }
+                          .docx-preview-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; font-size: 0.85rem; }
+                          .docx-preview-content li { margin-bottom: 0.25rem; }
+                          .docx-preview-content table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.8rem; }
+                          .docx-preview-content th, .docx-preview-content td { border: 1px solid rgba(148, 163, 184, 0.2); padding: 8px 12px; text-align: left; }
+                          .docx-preview-content th { background-color: rgba(115, 96, 242, 0.05); font-weight: 750; }
+                          .docx-preview-content strong { font-weight: 750; }
+                        `}</style>
+                        <div dangerouslySetInnerHTML={{ __html: docxHtml }} />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center min-h-[300px]">
+                        <p className="text-xs text-rose-500 font-bold mb-4">Lỗi khi trích xuất tài liệu Word trực tuyến.</p>
+                        <button 
+                          onClick={() => {
+                            const link = document.createElement("a");
+                            link.href = viewingDoc.url;
+                            link.download = viewingDoc.title;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className="px-6 py-3 bg-[#7360f2] hover:bg-[#5f4de0] text-white text-xs font-black uppercase rounded-2xl shadow-lg transition-transform active:scale-95"
+                        >
+                          Tải tệp xuống để đọc
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <iframe 
@@ -658,10 +702,27 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
             </div>
 
             {/* Footer */}
-            <div className="px-6 md:px-8 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-950/40">
+            <div className="px-6 md:px-8 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/40">
               <button 
-                onClick={() => setViewingDoc(null)}
-                className="px-5 py-2.5 bg-[#7360f2] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                onClick={() => {
+                  const link = document.createElement("a");
+                  link.href = viewingDoc.url;
+                  link.download = viewingDoc.title;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  toast.success("Đang bắt đầu tải xuống tài liệu!");
+                }}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black uppercase rounded-xl transition-all"
+              >
+                <Download size={13} /> Tải xuống
+              </button>
+              <button 
+                onClick={() => {
+                  setViewingDoc(null);
+                  setDocxHtml(null);
+                }}
+                className="px-5 py-2.5 bg-[#7360f2] hover:bg-[#5f4de0] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#7360f2]/10"
               >
                 Đóng
               </button>
