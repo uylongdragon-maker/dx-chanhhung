@@ -72,6 +72,9 @@ model Task {
   activities  Activity[]  @relation("TaskActivities")
   labels      TaskLabel[]
   watchers    TaskWatcher[]
+
+  @@index([assigneeId, status, dueDate])
+  @@index([poolId])
 }
 
 // Labels màu sắc cho Task
@@ -119,6 +122,8 @@ model Activity {
   
   taskId    String
   task      Task     @relation("TaskActivities", fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, type, createdAt])
 }
 
 // 4a. Phòng chat nhóm (như Zalo group – tập hợp theo dự án/nhóm việc)
@@ -145,6 +150,8 @@ model ChatRoomMember {
   user      User     @relation("RoomMembers", fields: [userId], references: [id])
   joinedAt  DateTime @default(now())
   @@id([roomId, userId])
+
+  @@index([userId])
 }
 
 // 4b. Bảng quản lý tin nhắn Chat nội bộ
@@ -165,6 +172,9 @@ model Message {
   sender      User      @relation("UserMessages", fields: [senderId], references: [id])
   
   createdAt   DateTime  @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([senderId, createdAt])
 }
 
 // 5. Lịch họp vật lý (booking phòng họp) - giữ lại cũ
@@ -175,6 +185,8 @@ model Meeting {
   endTime      DateTime?
   recordingUrl String? 
   summary      String?  // Biên bản / ghi chú cuộc họp
+
+  @@index([startTime])
 }
 
 // 5b. Sự kiện lịch họp (Calendar events – có thể đăng ký tham dự)

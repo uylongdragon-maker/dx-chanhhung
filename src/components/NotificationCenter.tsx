@@ -113,12 +113,14 @@ export default function NotificationCenter({ userId }: { userId: string }) {
     if (!userId) return;
 
     const poll = async () => {
+      if (document.hidden) return; // Skip polling if tab is inactive
       try {
         const since = new Date(lastCheckRef.current).toISOString();
         const res = await fetch(`/api/notifications?userId=${userId}&since=${encodeURIComponent(since)}`);
-        lastCheckRef.current = Date.now(); // update check time immediately
         
         if (!res.ok) return;
+        lastCheckRef.current = Date.now(); // update check time ONLY on success
+        
         const data = await res.json();
         let added = false;
 
@@ -188,8 +190,19 @@ export default function NotificationCenter({ userId }: { userId: string }) {
     };
 
     poll(); // immediate first run
-    const interval = setInterval(poll, 10_000); // every 10s
-    return () => clearInterval(interval);
+    const interval = setInterval(poll, 30_000); // every 30s instead of 10s
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        poll(); // Immediate check when returning to this tab
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [userId, addNotif]);
 
   // Close panel on outside click

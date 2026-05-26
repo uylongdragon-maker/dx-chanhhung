@@ -125,6 +125,7 @@ export default function BottomNav({ user }: { user: any }) {
                 <Link 
                   key={item.href} 
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setMenuOpen(false)}
                   className={`flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 active:scale-95 ${
                     isActive 
@@ -147,6 +148,7 @@ export default function BottomNav({ user }: { user: any }) {
           {isAdmin && (
             <Link 
               href="/workspace/admin"
+              prefetch={false}
               onClick={() => setMenuOpen(false)}
               className={`flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 active:scale-98 ${
                 pathname === '/workspace/admin'
@@ -186,6 +188,7 @@ export default function BottomNav({ user }: { user: any }) {
                 <Link 
                   key={item.href} 
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setMenuOpen(false)}
                   className="flex flex-col items-center gap-1 flex-1 py-1 active:scale-90 transition-transform duration-150 min-w-0"
                 >

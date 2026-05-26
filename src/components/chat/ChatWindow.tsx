@@ -149,9 +149,10 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
     return () => { supabase.removeChannel(channel); };
   }, [roomId, users, currentUser.id]);
 
-  // ── Polling Fallback: every 3s silently sync new messages ──────────
+  // ── Polling Fallback: silently sync new messages ──────────
   useEffect(() => {
-    const poll = setInterval(async () => {
+    const poll = async () => {
+      if (document.hidden) return; // Skip polling if tab is inactive
       try {
         const res = await fetch(`/api/chat/messages?roomId=${roomId}`);
         if (!res.ok) return;
@@ -171,8 +172,21 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
           );
         });
       } catch { /* silently ignore */ }
-    }, 3000);
-    return () => clearInterval(poll);
+    };
+
+    const interval = setInterval(poll, 20_000); // 20s instead of 3s (WebSockets handle realtime)
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        poll(); // Immediate check on tab focus
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [roomId]);
 
   // ── Send message ───────────────────────────────────────────────────

@@ -40,7 +40,7 @@ export default function Sidebar({ user }: { user: any }) {
           const Icon = link.icon;
           const isActive = pathname === link.href;
           return (
-            <Link key={link.href} href={link.href} className={`group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${isActive ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" : "text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-900"}`}>
+            <Link key={link.href} href={link.href} prefetch={false} className={`group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${isActive ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" : "text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-900"}`}>
               <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className="shrink-0" />
               <span className={`text-sm font-black tracking-tight ${isActive ? "" : "group-hover:translate-x-1 transition-transform"}`}>{link.title}</span>
             </Link>
@@ -50,7 +50,7 @@ export default function Sidebar({ user }: { user: any }) {
         <div className="h-px w-full bg-slate-200 dark:bg-slate-800 my-2" />
 
         {isAdmin && (
-          <Link href="/workspace/admin" className={`group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${pathname === "/workspace/admin" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-amber-600 hover:bg-amber-50"}`}>
+          <Link href="/workspace/admin" prefetch={false} className={`group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${pathname === "/workspace/admin" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-amber-600 hover:bg-amber-50"}`}>
             <ShieldCheck size={20} className="shrink-0" />
             <span className={`text-sm font-black tracking-tight ${pathname === "/workspace/admin" ? "" : "group-hover:translate-x-1 transition-transform"}`}>Admin Gate</span>
           </Link>
