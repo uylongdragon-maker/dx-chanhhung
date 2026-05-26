@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { changeOwnPassword } from "@/app/actions/user";
-import { Settings, Lock, Smartphone, Bell, Fingerprint, ShieldCheck, Loader2, ChevronRight, Zap, CheckCircle2 } from "lucide-react";
+import { 
+  Settings, Lock, Smartphone, Bell, Fingerprint, ShieldCheck, 
+  Loader2, ChevronRight, Zap, CheckCircle2, Download, Share2, HelpCircle 
+} from "lucide-react";
 
 export default function MemberSettingsPage() {
   const [oldPass, setOldPass] = useState("");
@@ -14,6 +17,42 @@ export default function MemberSettingsPage() {
   // States for UX simulation
   const [faceId, setFaceId] = useState(false);
   const [pushNotif, setPushNotif] = useState(true);
+
+  // PWA installation states & hooks
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      // Fallback/iOS tutorial if no prompt available
+      setShowInstallGuide(true);
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`PWA Prompt Outcome: ${outcome}`);
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
   
   const handleRegisterFaceID = async () => {
     try {
@@ -234,6 +273,25 @@ export default function MemberSettingsPage() {
                     <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-all duration-500 shadow-md ${pushNotif ? 'left-7' : 'left-1'}`}></div>
                   </div>
                 </button>
+
+                {/* PWA Installation Button */}
+                <div className="w-full flex justify-between items-center p-6 rounded-[2rem] border border-white/40 bg-white/20 dark:bg-slate-800/20 hover:bg-white/40 transition-all text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-[#7360f2]/10 rounded-xl text-[#7360f2] shadow-inner">
+                        <Download size={24} />
+                    </div>
+                    <div>
+                        <p className="font-black text-sm text-slate-800 dark:text-slate-100 tracking-tight leading-none">Cài đặt Ứng dụng</p>
+                        <p className="text-[10px] text-slate-400 mt-2 font-black uppercase tracking-widest leading-normal">Cài CHX Workspace lên màn hình điện thoại</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleInstallApp}
+                    className="px-5 py-2.5 bg-[#7360f2] text-white hover:bg-[#5f4de0] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-[#7360f2]/20 active:scale-95 whitespace-nowrap"
+                  >
+                    Cài đặt
+                  </button>
+                </div>
             </div>
 
             {/* Notification Sound */}
@@ -268,6 +326,52 @@ export default function MemberSettingsPage() {
         </div>
 
       </div>
+
+      {/* ── SECTION H: PWA MANUAL INSTALLATION GUIDE MODAL ── */}
+      {showInstallGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 w-full max-w-md rounded-[2.5rem] p-6 md:p-8 flex flex-col gap-5 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#7360f2]/10 text-[#7360f2] rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                <Smartphone size={20} />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 dark:text-slate-100 text-sm uppercase leading-tight">Cài đặt trên điện thoại</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Hướng dẫn thêm PWA màn hình chính</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+              Nếu trình duyệt của bạn không hỗ trợ cài đặt tự động (ví dụ như Safari trên iPhone hoặc Chrome trên iOS), bạn hãy làm theo các bước đơn giản sau:
+            </p>
+
+            <div className="flex flex-col gap-3.5 text-xs text-slate-700 dark:text-slate-300 font-bold">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-2xl flex gap-3 items-center">
+                <span className="w-6 h-6 rounded-full bg-[#7360f2] text-white flex items-center justify-center text-[10px] shrink-0">1</span>
+                <p>Mở ứng dụng bằng trình duyệt gốc của thiết bị (ví dụ: <strong className="text-[#7360f2]">Safari</strong> trên iPhone).</p>
+              </div>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-2xl flex gap-3 items-center">
+                <span className="w-6 h-6 rounded-full bg-[#7360f2] text-white flex items-center justify-center text-[10px] shrink-0">2</span>
+                <p>Bấm vào biểu tượng nút <strong className="text-[#7360f2]">Chia sẻ (Share)</strong> ở góc dưới thanh công cụ của trình duyệt.</p>
+              </div>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-2xl flex gap-3 items-center">
+                <span className="w-6 h-6 rounded-full bg-[#7360f2] text-white flex items-center justify-center text-[10px] shrink-0">3</span>
+                <p>Cuộn xuống dưới và chọn tùy chọn <strong className="text-[#7360f2]">Thêm vào màn hình chính (Add to Home Screen)</strong>.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-1.5">
+              <button 
+                onClick={() => setShowInstallGuide(false)}
+                className="w-full px-5 py-3 bg-[#7360f2] hover:bg-[#5f4de0] text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all active:scale-95 shadow-md text-center"
+              >
+                Đã hiểu, đóng hướng dẫn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
