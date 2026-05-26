@@ -121,13 +121,39 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
     const file = e.target.files?.[0]; if (!file) return;
     setIsUploading(true);
     try {
-      const path = `tasks/${task.id}/${Math.random()}.${file.name.split('.').pop()}`;
-      const { error } = await supabase.storage.from('media').upload(path, file);
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
-      run(() => addTaskAttachment(task.id, publicUrl), "Đã đính kèm tệp");
-    } catch (err: any) { toast.error("Lỗi tải lên: " + err.message); }
-    finally { setIsUploading(false); }
+      // 1. Chuyển đổi File sang Base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const str = (reader.result as string).split(",")[1];
+          resolve(str);
+        };
+        reader.onerror = (err) => reject(err);
+      });
+
+      // 2. Gửi yêu cầu tải lên Google Drive qua Apps Script Web App
+      const response = await fetch("https://script.google.com/macros/s/AKfycbx45EPzrRFbxNBMZ59_aN5m8aYRgvYZG5vBKrlKa6_RfxfM3AU_uv7cc6ipTAw3K8DZ/exec", {
+        method: "POST",
+        body: JSON.stringify({
+          base64: base64,
+          fileName: file.name,
+          mimeType: file.type
+        })
+      });
+
+      const resData = await response.json();
+      if (!resData.success) {
+        throw new Error(resData.error || "Tải lên Google Drive thất bại");
+      }
+
+      // 3. Đính kèm liên kết kết quả vào Thẻ việc
+      run(() => addTaskAttachment(task.id, resData.url), "Đã báo cáo tệp lên Google Drive");
+    } catch (err: any) { 
+      toast.error("Lỗi tải lên Drive: " + err.message); 
+    } finally { 
+      setIsUploading(false); 
+    }
   };
 
   const handleDelete = () => {
@@ -405,15 +431,26 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
               <input type="file" id="fileUpload-modal" className="hidden" onChange={handleFileUpload} />
 
               {localTask.attachments?.length > 0 && (
-                <div className="mt-2 flex flex-col gap-1.5">
-                  {localTask.attachments.map((url: string, i: number) => (
-                    <a key={i} href={url} target="_blank" className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg hover:shadow-sm transition-all">
-                      <div className="w-8 h-8 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-blue-500 shrink-0">
-                        <Paperclip size={14} />
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">Tài liệu {i+1}</span>
-                    </a>
-                  ))}
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {localTask.attachments.map((url: string, i: number) => {
+                    const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i) != null || url.includes("drive.google.com/uc");
+                    return (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-1.5 p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:shadow-md transition-all group overflow-hidden">
+                        {isImage ? (
+                          <div className="relative w-full h-28 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shrink-0">
+                            <img src={url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="Hình ảnh báo cáo" />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 py-1">
+                            <div className="w-8 h-8 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-blue-500 shrink-0">
+                              <Paperclip size={14} />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">Tài liệu {i+1}</span>
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
                 </div>
               )}
             </div>
