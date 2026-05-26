@@ -18,6 +18,16 @@ export async function updateTaskDescription(taskId: string, description: string)
   }
 }
 
+export async function updateTaskTitle(taskId: string, title: string) {
+  try {
+    await prisma.task.update({ where: { id: taskId }, data: { title } });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function addChecklist(taskId: string, title: string) {
   try {
     const checklist = await prisma.checklist.create({ data: { taskId, title } });
@@ -220,3 +230,57 @@ export async function removeTaskWatcher(taskId: string, userId: string) {
     return { success: false, error: error.message };
   }
 }
+
+export async function updateTaskCreator(taskId: string, creatorId: string | null) {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { creatorId },
+    });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateTaskEvaluation(taskId: string, evaluation: string) {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { evaluation },
+    });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateTaskEvaluationNotes(taskId: string, notes: string | null) {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { evaluationNotes: notes },
+    });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateTaskProductType(taskId: string, productType: string) {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { productType },
+    });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+

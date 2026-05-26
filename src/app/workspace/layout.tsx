@@ -4,6 +4,7 @@ import NotificationCenter from "@/components/NotificationCenter";
 import { createClient } from "@/utils/supabase/server";
 import { syncUser } from "@/utils/sync-user";
 import { redirect } from "next/navigation";
+import { prisma } from "@/utils/prisma";
 
 export default async function WorkspaceLayout({
   children,
@@ -30,24 +31,35 @@ export default async function WorkspaceLayout({
     return redirect("/login?error=Tài khoản của bạn đã bị từ chối phê duyệt.");
   }
 
+  // Lấy cấu hình logo hệ thống
+  const appLogoConfig = await prisma.systemConfig.findUnique({
+    where: { key: "APP_LOGO" }
+  });
+
   return (
     // 1. VỎ BAO NGOÀI CÙNG: Khóa cứng chiều cao bằng màn hình
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
       
       {/* 2. SIDEBAR DESKTOP */}
-      <Sidebar user={currentUser || supabaseUser} />
+      <Sidebar user={currentUser || supabaseUser} appLogo={appLogoConfig?.value || ""} />
 
       {/* 3. KHU VỰC NỘI DUNG CHÍNH (MAIN) */}
       <div className="flex-1 flex flex-col h-full min-w-0">
         {/* MOBILE HEADER - Top Nav for Notification Bell */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl border-b border-slate-200/50 dark:border-slate-800/60 sticky top-0 z-40">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20 shrink-0">
-              <span className="font-black text-[10px] tracking-tighter">CH</span>
-            </div>
+            {appLogoConfig?.value ? (
+              <div className="w-8 h-8 rounded-xl overflow-hidden border border-[#7360f2]/20 shadow-md shrink-0">
+                <img src={appLogoConfig.value} alt="App Logo" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-xl bg-[#7360f2] flex items-center justify-center text-white shadow-lg shadow-[#7360f2]/20 shrink-0">
+                <span className="font-black text-[10px] tracking-tighter">CHX</span>
+              </div>
+            )}
             <div className="flex flex-col">
-              <span className="font-black text-slate-800 dark:text-slate-100 text-xs uppercase tracking-tight leading-none">Workspace</span>
-              <span className="text-[9px] font-bold text-blue-600">Chánh Hưng</span>
+              <span className="font-black text-slate-800 dark:text-slate-100 text-xs uppercase tracking-tight leading-none">CHX</span>
+              <span className="text-[9px] font-bold text-[#7360f2] uppercase tracking-wider">WORKSPACE</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

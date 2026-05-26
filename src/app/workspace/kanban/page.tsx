@@ -3,7 +3,6 @@ import KanbanFullBoard from "@/components/KanbanFullBoard";
 import { createClient } from "@/utils/supabase/server";
 import CreateTaskForm from "@/components/CreateTaskForm";
 import PoolReminderPanel from "@/components/kanban/PoolReminderPanel";
-import Link from "next/link";
 import { Pin } from "lucide-react";
 
 export default async function KanbanPage() {
@@ -14,6 +13,7 @@ export default async function KanbanPage() {
     prisma.task.findMany({
       include: {
         assignee: true,
+        creator: true,
         checklists: { include: { items: true } },
         activities: { include: { user: true }, orderBy: { createdAt: 'desc' } },
         labels: true,
@@ -39,7 +39,7 @@ export default async function KanbanPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div>
           <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-1">Kanban Board</p>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Quản lý Công việc</h1>
+          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Chi Tiết Công Việc & Hoạt Động</h1>
         </div>
         <CreateTaskForm />
       </div>

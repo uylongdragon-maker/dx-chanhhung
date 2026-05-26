@@ -132,3 +132,20 @@ export async function approveUser(adminId: string, targetUserId: string) {
     return { success: false, message: error.message || "Lỗi hệ thống!" };
   }
 }
+
+// Cập nhật Logo ứng dụng mới (Lưu vào SystemConfig)
+export async function updateAppLogo(adminId: string, logoBase64: string) {
+  try {
+    await checkAdminStatus(adminId);
+    await prisma.systemConfig.upsert({
+      where: { key: "APP_LOGO" },
+      update: { value: logoBase64 },
+      create: { key: "APP_LOGO", value: logoBase64 }
+    });
+    revalidatePath("/workspace", "layout"); // Revalidate layout
+    return { success: true };
+  } catch (error: any) {
+    console.error("Update App Logo Error:", error);
+    return { success: false, message: error.message || "Lỗi hệ thống!" };
+  }
+}

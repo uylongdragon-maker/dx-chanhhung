@@ -2,6 +2,7 @@
 
 import { prisma } from "@/utils/prisma";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/utils/supabase/server";
 
 export async function updateTaskStatus(taskId: string, newStatus: string) {
   try {
@@ -29,6 +30,9 @@ export async function createTask(formData: FormData) {
       return { success: false, error: "Tiêu đề không được để trống" };
     }
 
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
     let pool = await prisma.pool.findFirst();
     if (!pool) {
       pool = await prisma.pool.create({ data: { name: "Ban Truyền thông Chánh Hưng" } });
@@ -42,6 +46,7 @@ export async function createTask(formData: FormData) {
         status: "TODO",
         poolId: pool.id,
         assigneeId: assigneeId || null,
+        creatorId: authUser?.id || null,
       },
     });
 
@@ -88,13 +93,23 @@ export async function updateTaskStatusAndOrder(taskId: string, newStatus: string
 export async function createInlineTask(title: string, status: string) {
   if (!title.trim()) return { success: false };
   try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
     let pool = await prisma.pool.findFirst();
     if (!pool) {
       pool = await prisma.pool.create({ data: { name: "Ban Truyền thông Chánh Hưng" } });
     }
 
     await prisma.task.create({
-      data: { title, status, priority: 'MEDIUM', poolId: pool.id, order: 0 }
+      data: {
+        title,
+        status,
+        priority: 'MEDIUM',
+        poolId: pool.id,
+        order: 0,
+        creatorId: authUser?.id || null,
+      }
     });
 
     revalidatePath('/workspace/kanban');

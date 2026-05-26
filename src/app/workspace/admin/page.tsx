@@ -27,9 +27,13 @@ export default async function AdminPage() {
     orderBy: { name: "asc" }
   });
 
-  // 3. Lấy cấu hình hệ thống (Gemini Key)
+  // 3. Lấy cấu hình hệ thống (Gemini Key & App Logo)
   const geminiConfig = await prisma.systemConfig.findUnique({
     where: { key: "GEMINI_API_KEY" }
+  });
+
+  const appLogoConfig = await prisma.systemConfig.findUnique({
+    where: { key: "APP_LOGO" }
   });
 
   // Tính toán thống kê
@@ -58,6 +62,7 @@ export default async function AdminPage() {
       {/* 3. KHU VỰC CÀI ĐẶT HỆ THỐNG - Client Component */}
       <SystemSettings 
         currentGeminiKey={geminiConfig?.value || process.env.GEMINI_API_KEY || ""} 
+        currentAppLogo={appLogoConfig?.value || ""}
         adminId={currentUser.id}
       />
 

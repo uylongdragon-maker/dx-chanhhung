@@ -7,6 +7,7 @@ import { signOut } from "@/app/login/actions"
 import { 
   LayoutDashboard, 
   Kanban, 
+  Table,
   MessageSquare, 
   Calendar, 
   Settings, 
@@ -14,8 +15,8 @@ import {
   X, 
   Users, 
   BookOpen, 
-  Image as ImageIcon, 
-  ShieldCheck, 
+  FileText, 
+  ShieldCheck,
   LogOut, 
   ChevronRight
 } from 'lucide-react'
@@ -62,12 +63,13 @@ export default function BottomNav({ user }: { user: any }) {
 
   // Drawer menu items (Remaining routes)
   const drawerItems = [
+    { href: '/workspace/table',    icon: Table,            label: 'Bảng Theo Dõi', color: 'text-amber-500 bg-amber-500/10' },
     { href: '/workspace/team',     icon: Users,            label: 'Đội hình', color: 'text-blue-500 bg-blue-500/10' },
     { href: '/workspace/library',  icon: BookOpen,         label: 'Thư viện', color: 'text-emerald-500 bg-emerald-500/10' },
-    { href: '/workspace/media',    icon: ImageIcon,        label: 'Media Pool', color: 'text-purple-500 bg-purple-500/10' },
-    { href: '/workspace/approval', icon: ShieldCheck,      label: 'Duyệt Content', color: 'text-rose-500 bg-rose-500/10' },
+    { href: '/workspace/meeting-minutes', icon: FileText,   label: 'Biên bản họp', color: 'text-violet-500 bg-violet-500/10' },
     { href: '/workspace/settings', icon: Settings,         label: 'Cài đặt', color: 'text-slate-500 bg-slate-500/10' },
   ];
+
 
   return (
     <>
@@ -91,12 +93,12 @@ export default function BottomNav({ user }: { user: any }) {
         <div className="px-6 space-y-6 max-h-[70vh] overflow-y-auto pb-6">
           {/* User Profile Summary Card */}
           <div className="flex items-center gap-4 p-5 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200/20 dark:border-slate-800/20 rounded-3xl relative overflow-hidden group">
-            <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-blue-500/5 rounded-full blur-xl"></div>
+            <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-[#7360f2]/5 rounded-full blur-xl"></div>
             <div className="relative shrink-0">
               <img 
                 alt="User" 
                 className={`w-12 h-12 rounded-2xl object-cover ${isAdmin ? 'border-2 border-amber-500' : ''}`}
-                src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || "User"}&background=3b82f6&color=fff`} 
+                src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || "User"}&background=7360f2&color=fff`} 
               />
               {isAdmin && <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full border-2 border-white dark:border-slate-950" />}
             </div>
@@ -105,7 +107,7 @@ export default function BottomNav({ user }: { user: any }) {
               <h4 className="font-black text-slate-800 dark:text-slate-100 text-sm truncate leading-tight flex items-center gap-1.5">
                 {user?.name || 'Thành viên'}
                 {user?.unit && (
-                  <span className="bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border border-blue-500/10">
+                  <span className="bg-[#7360f2]/10 text-[#7360f2] px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border border-[#7360f2]/10">
                     {user.unit}
                   </span>
                 )}
@@ -129,7 +131,7 @@ export default function BottomNav({ user }: { user: any }) {
                   onClick={() => setMenuOpen(false)}
                   className={`flex items-center gap-3 p-4 rounded-2xl border transition-all duration-300 active:scale-95 ${
                     isActive 
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20' 
+                      ? 'bg-[#7360f2] text-white border-[#7360f2] shadow-lg shadow-[#7360f2]/20' 
                       : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/80 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900/50'
                   }`}
                 >
@@ -192,10 +194,10 @@ export default function BottomNav({ user }: { user: any }) {
                   onClick={() => setMenuOpen(false)}
                   className="flex flex-col items-center gap-1 flex-1 py-1 active:scale-90 transition-transform duration-150 min-w-0"
                 >
-                  <div className={`relative flex items-center justify-center w-12 h-8 rounded-2xl transition-all duration-300 ${isActive ? 'bg-blue-600 shadow-lg shadow-blue-500/30' : ''}`}>
+                  <div className={`relative flex items-center justify-center w-12 h-8 rounded-2xl transition-all duration-300 ${isActive ? 'bg-[#7360f2] shadow-lg shadow-[#7360f2]/30' : ''}`}>
                     <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} className={`transition-all duration-300 ${isActive ? 'text-white scale-110' : 'text-slate-400 dark:text-slate-500'}`} />
                   </div>
-                  <span className={`text-[8px] font-black uppercase tracking-widest transition-all duration-300 truncate ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-600'}`}>
+                  <span className={`text-[8px] font-black uppercase tracking-widest transition-all duration-300 truncate ${isActive ? 'text-[#7360f2] dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`}>
                     {item.label}
                   </span>
                 </Link>
@@ -207,14 +209,14 @@ export default function BottomNav({ user }: { user: any }) {
               onClick={() => setMenuOpen(!menuOpen)}
               className="flex flex-col items-center gap-1 flex-1 py-1 active:scale-90 transition-transform duration-150 min-w-0"
             >
-              <div className={`relative flex items-center justify-center w-12 h-8 rounded-2xl transition-all duration-300 ${menuOpen ? 'bg-blue-600 shadow-lg shadow-blue-500/30' : 'bg-slate-100 dark:bg-slate-900 border border-slate-200/20'}`}>
+              <div className={`relative flex items-center justify-center w-12 h-8 rounded-2xl transition-all duration-300 ${menuOpen ? 'bg-[#7360f2] shadow-lg shadow-[#7360f2]/30' : 'bg-slate-100 dark:bg-slate-900 border border-slate-200/20'}`}>
                 {menuOpen ? (
                   <X size={18} strokeWidth={2.5} className="text-white scale-110 transition-all duration-300" />
                 ) : (
                   <Menu size={18} strokeWidth={1.8} className="text-slate-500 dark:text-slate-400 transition-all duration-300" />
                 )}
               </div>
-              <span className={`text-[8px] font-black uppercase tracking-widest transition-all duration-300 truncate ${menuOpen ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-600'}`}>
+              <span className={`text-[8px] font-black uppercase tracking-widest transition-all duration-300 truncate ${menuOpen ? 'text-[#7360f2] dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`}>
                 Thêm
               </span>
             </button>

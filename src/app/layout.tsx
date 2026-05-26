@@ -9,18 +9,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Tuổi Trẻ Số Chánh Hưng',
+  title: 'CHX WORKSPACE',
   description: 'Trạm hành dinh số của Ban Truyền thông Chánh Hưng',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'CH Workspace',
+    title: 'CHX WORKSPACE',
   },
 };
 
 export const viewport = {
-  themeColor: '#2563eb',
+  themeColor: '#7360f2',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

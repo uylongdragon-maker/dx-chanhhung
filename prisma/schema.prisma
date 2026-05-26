@@ -29,6 +29,16 @@ model User {
   role      String    @default("MEMBER") // ADMIN, EDITOR, MEMBER
   status    String    @default("APPROVED") // PENDING, APPROVED, REJECTED
   tempPassword String? // Mật khẩu đăng ký ban đầu để Admin duyệt
+  phone               String?
+  position            String?      @default("Thành viên") // Chủ nhiệm, Phó Chủ nhiệm, Thành viên, CTV
+  roles               String?      // Vai trò truyền thông (VD: Kỹ thuật truyền thông, Sự kiện, Nội dung)
+  scoreQuickness      Int          @default(80)
+  scoreFlexibility    Int          @default(80)
+  scoreExpertise      Int          @default(80)
+  scoreProblemSolving Int          @default(80)
+  scoreCreativity     Int          @default(80)
+  scoreResponsibility Int          @default(80)
+  leaderEvaluation    String?      @db.Text
   poolId    String
   pool      Pool      @relation(fields: [poolId], references: [id])
   tasks     Task[]    @relation("TaskAssignee")
@@ -43,6 +53,7 @@ model User {
   roomMemberships ChatRoomMember[] @relation("RoomMembers")
   createdEvents MeetingEvent[] @relation("EventCreator")
   eventAttendances MeetingAttendee[] @relation("EventAttendees")
+  createdTasks Task[]    @relation("TaskCreator")
 }
 
 // 3. Bảng quản lý thẻ việc Kanban (Trello Card Style — v2)
@@ -62,6 +73,14 @@ model Task {
   estimatedHours Int?                        // Ước tính số giờ thực hiện
   completedAt    DateTime?                   // Thời điểm hoàn thành thực tế
   tags           String[]                    // Tags nhanh (text)
+
+  // Cột bổ sung cho bảng theo dõi (Excel)
+  creatorId   String?
+  creator     User?       @relation("TaskCreator", fields: [creatorId], references: [id])
+  evaluation  String      @default("REVIEWING") // REVIEWING, APPROVED, REJECTED, POSTPONED
+  evaluationNotes String? @db.Text
+  productType String      @default("ALL")       // ALL, IMAGE, VIDEO, DOCUMENT
+
 
   poolId      String
   pool        Pool        @relation(fields: [poolId], references: [id])
@@ -255,6 +274,8 @@ model LibraryItem {
   category  String
   content   String   @db.Text
   fileUrl   String?
+  embedUrl  String?  // Đường dẫn nhúng (YouTube, TikTok...)
+  password  String?  // Mật khẩu bảo vệ tải tài liệu
   createdAt DateTime @default(now())
 }
 
@@ -299,3 +320,19 @@ model Vote {
   
   @@unique([pollId, userId])
 }
+
+// 12. Bảng Biên Bản Họp (Meeting Minutes)
+model MeetingMinutes {
+  id              String   @id @default(cuid())
+  meetingId       String   @unique // Cú pháp MEET_YYYYMMDD_NAME
+  title           String
+  timeLocation    String
+  attendees       Json     // Lưu: { host: string, secretary: string, participants: string[] }
+  goal            String   @db.Text
+  summary         String   @db.Text // Tóm tắt cốt lõi 3-5 dòng
+  actionItems     Json     // Lưu: Task[] -> { name, assignee, deadline, status, priority }
+  issuesDecisions Json     // Lưu: { decisions: string[], issues: string[] }
+  ideasInsights   Json     // Lưu: { ideas: string[] }
+  createdAt       DateTime @default(now())
+}
+

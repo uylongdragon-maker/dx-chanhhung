@@ -1,22 +1,51 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Fingerprint, Bell, Sparkles, Key, Eye, EyeOff, ShieldCheck, Zap } from "lucide-react";
-import { updateGeminiKey } from "@/app/actions/admin";
+import { Loader2, Fingerprint, Bell, Sparkles, Key, Eye, EyeOff, ShieldCheck, Zap, Upload } from "lucide-react";
+import { updateGeminiKey, updateAppLogo } from "@/app/actions/admin";
 
 interface SystemSettingsProps {
   currentGeminiKey: string;
+  currentAppLogo: string;
   adminId: string;
 }
 
-export default function SystemSettings({ currentGeminiKey, adminId }: SystemSettingsProps) {
+export default function SystemSettings({ currentGeminiKey, currentAppLogo, adminId }: SystemSettingsProps) {
   const [isPending, startTransition] = useTransition();
   const [geminiKey, setGeminiKey] = useState(currentGeminiKey);
   const [showKey, setShowKey] = useState(false);
   
+  const [appLogo, setAppLogo] = useState(currentAppLogo);
+  const [isLogoPending, startLogoTransition] = useTransition();
+  
   // UX Simulation
   const [biometrics, setBiometrics] = useState(true);
   const [pushNotif, setPushNotif] = useState(true);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng tải lên tệp tin định dạng hình ảnh!");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      startLogoTransition(async () => {
+        const res = await updateAppLogo(adminId, base64);
+        if (res.success) {
+          setAppLogo(base64);
+          alert("Đã cập nhật Logo ứng dụng mới thành công!");
+        } else {
+          alert(res.message || "Lỗi khi cập nhật logo.");
+        }
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleUpdateKey = async () => {
     if (!geminiKey) return;
@@ -144,6 +173,42 @@ export default function SystemSettings({ currentGeminiKey, adminId }: SystemSett
                         <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-500 shadow-md ${pushNotif ? 'left-6' : 'left-1'}`}></div>
                     </div>
                 </button>
+            </div>
+
+            {/* Brand Logo Settings Card */}
+            <div className="bg-white/40 dark:bg-slate-950/20 backdrop-blur-3xl border border-white/60 dark:border-slate-800/60 p-8 rounded-[3.5rem] shadow-xl space-y-6">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-4 mb-4">Nhận diện thương hiệu</h4>
+                
+                <div className="flex items-center gap-5 p-5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200/20 rounded-3xl relative overflow-hidden group">
+                  <div className="relative shrink-0 w-16 h-16 rounded-2xl bg-[#7360f2]/10 flex items-center justify-center border border-[#7360f2]/20 overflow-hidden shadow-inner">
+                    {appLogo ? (
+                      <img src={appLogo} alt="App Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-black text-lg text-[#7360f2]">CHX</span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-sm text-slate-800 dark:text-slate-100 tracking-tight leading-none">Logo CHX Workspace</p>
+                    <p className="text-[9px] text-slate-400 mt-2 font-black uppercase tracking-widest leading-normal">Thay đổi ảnh logo góc trên & thanh Sidebar</p>
+                  </div>
+                </div>
+
+                <div className="relative w-full">
+                  <input 
+                    type="file" 
+                    id="app-logo-uploader" 
+                    accept="image/*" 
+                    onChange={handleLogoChange}
+                    className="hidden" 
+                  />
+                  <label 
+                    htmlFor="app-logo-uploader"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg active:scale-95 text-center font-bold"
+                  >
+                    {isLogoPending ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+                    Tải logo mới lên
+                  </label>
+                </div>
             </div>
 
             {/* Warning Card */}

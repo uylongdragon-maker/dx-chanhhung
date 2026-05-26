@@ -58,14 +58,14 @@ function QuickTaskPanel({
     <div className="absolute bottom-full mb-2 left-0 right-0 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[1.5rem] shadow-2xl p-4 animate-in slide-in-from-bottom-2 duration-200">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest flex items-center gap-1.5">
-          <CheckSquare size={13} className="text-blue-500" /> Giao việc từ phòng
+          <CheckSquare size={13} className="text-[#7360f2]" /> Giao việc từ phòng
         </p>
         <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
           <X size={12} className="text-slate-400" />
         </button>
       </div>
       <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tên công việc..."
-        className="w-full px-3 py-2 mb-3 text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" />
+        className="w-full px-3 py-2 mb-3 text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/40 rounded-xl outline-none focus:ring-2 focus:ring-[#7360f2]/20" />
       <div className="flex gap-2 mb-3 flex-wrap">
         {PRIOS.map(p => (
           <button key={p.v} onClick={() => setPriority(p.v)}
@@ -76,15 +76,15 @@ function QuickTaskPanel({
       </div>
       <div className="grid grid-cols-2 gap-2 mb-3">
         <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-          className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none">
+          className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/40 rounded-xl outline-none">
           <option value="">Người thực hiện...</option>
           {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
         <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-          className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
+          className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/40 rounded-xl outline-none" />
       </div>
       <button onClick={handleCreate} disabled={isPending || !title.trim()}
-        className="w-full py-2.5 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-blue-500/20">
+        className="w-full py-2.5 bg-[#7360f2] text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-[#5f4de0] disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-[#7360f2]/20">
         {isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
         Tạo việc → Kanban
       </button>
@@ -233,7 +233,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
   };
 
   return (
-    <div className="flex flex-col h-full min-h-[400px] bg-white/30 dark:bg-slate-950/40 backdrop-blur-3xl border border-white/40 dark:border-slate-800/50 rounded-[2rem] shadow-2xl overflow-hidden">
+    <div className="flex flex-col h-full min-h-[400px] bg-[#f4f3f9] dark:bg-[#0d0b18] border border-[#7360f2]/10 dark:border-slate-800/40 rounded-[2rem] shadow-xl overflow-hidden">
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide">
@@ -254,8 +254,8 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
 
           return (
             <div key={m.id} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"} ${m._optimistic ? "opacity-70" : "opacity-100"} transition-opacity`}>
-              <div className="w-7 h-7 rounded-xl flex-shrink-0 flex items-center justify-center text-[9px] font-black text-white overflow-hidden"
-                style={{ background: isMe ? "linear-gradient(135deg,#2563eb,#7c3aed)" : "linear-gradient(135deg,#475569,#64748b)" }}>
+              <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-black text-white overflow-hidden"
+                style={{ background: isMe ? "linear-gradient(135deg,#7360f2,#9b8bf7)" : "linear-gradient(135deg,#475569,#64748b)" }}>
                 {m.sender?.avatarUrl ? <img src={m.sender.avatarUrl} className="w-full h-full object-cover" alt="" /> : initials}
               </div>
 
@@ -263,15 +263,15 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
                 {!isMe && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">{displayName}</span>}
 
                 {isTaskRef ? (
-                  <div className="px-3 py-2 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 flex items-center gap-2">
-                    <CheckSquare size={13} className="text-blue-500 shrink-0" />
-                    <span className="text-xs font-bold text-blue-800 dark:text-blue-200">{m.content}</span>
+                  <div className="px-3 py-2 rounded-2xl bg-[#7360f2]/10 dark:bg-[#7360f2]/20 border border-[#7360f2]/20 flex items-center gap-2">
+                    <CheckSquare size={13} className="text-[#7360f2] shrink-0" />
+                    <span className="text-xs font-bold text-[#7360f2] dark:text-[#a094f7]">{m.content}</span>
                   </div>
                 ) : (
-                  <div className={`px-4 py-2.5 rounded-2xl text-sm font-medium shadow-sm ${
+                  <div className={`px-4 py-2.5 rounded-[1.25rem] text-sm font-medium shadow-sm leading-relaxed ${
                     isMe
-                      ? "bg-blue-600 text-white rounded-br-sm"
-                      : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700 rounded-bl-sm"
+                      ? "bg-[#7360f2] text-white rounded-br-[0.25rem]"
+                      : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-[0.25rem] border border-slate-100/50 dark:border-slate-800/40"
                   }`}>
                     {m.content}
                     {m._optimistic && <Loader2 size={9} className="inline ml-2 animate-spin opacity-60" />}
@@ -286,7 +286,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
       </div>
 
       {/* Input */}
-      <div className="p-3 bg-white/50 dark:bg-slate-900/50 border-t border-white/60 dark:border-slate-800/60 backdrop-blur-xl">
+      <div className="p-3 bg-white/60 dark:bg-slate-900/60 border-t border-slate-200/20 dark:border-slate-800/30 backdrop-blur-xl">
         <div className="relative">
           {showTaskPanel && (
             <QuickTaskPanel prefill="" users={users} currentUser={currentUser} poolId={poolId} onClose={() => setShowTaskPanel(false)} />
@@ -295,7 +295,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
           <form onSubmit={onSend} className="flex items-center gap-2">
             <button type="button" onClick={() => setShowTaskPanel(v => !v)} title="Giao việc"
               className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                showTaskPanel ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                showTaskPanel ? "bg-[#7360f2] text-white shadow-lg shadow-[#7360f2]/20" : "text-slate-400 hover:text-[#7360f2] hover:bg-[#7360f2]/10 dark:hover:bg-[#7360f2]/20"
               }`}>
               <CheckSquare size={16} />
             </button>
@@ -306,7 +306,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
                 value={text} onChange={e => setText(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(e as any); } }}
                 disabled={isSending} autoComplete="off"
-                className="w-full pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-sm font-medium text-slate-800 dark:text-slate-100 transition-all outline-none placeholder:text-slate-400 disabled:opacity-60"
+                className="w-full pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/40 rounded-2xl focus:ring-2 focus:ring-[#7360f2]/20 focus:border-[#7360f2]/40 text-sm font-medium text-slate-800 dark:text-slate-100 transition-all outline-none placeholder:text-slate-400 disabled:opacity-60"
               />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-amber-500 transition-colors">
                 <Smile size={16} />
@@ -314,7 +314,7 @@ export default function RoomChatWindow({ messages, setMessages, currentUser, roo
             </div>
 
             <button type="submit" disabled={!text.trim() || isSending}
-              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-90 flex items-center justify-center shrink-0">
+              className="w-10 h-10 bg-[#7360f2] hover:bg-[#5f4de0] disabled:opacity-40 text-white rounded-xl shadow-lg shadow-[#7360f2]/20 transition-all active:scale-90 flex items-center justify-center shrink-0">
               {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </form>

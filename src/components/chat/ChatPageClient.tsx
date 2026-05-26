@@ -138,7 +138,7 @@ export default function ChatPageClient({
           <div className="p-4 border-b border-slate-100/60 dark:border-slate-800/60">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-widest flex items-center gap-1.5">
-                <MessageSquare size={13} className="text-blue-500" /> Kênh Chat
+                <MessageSquare size={13} className="text-[#7360f2]" /> Kênh Chat
               </h2>
               <CreateRoomModal userId={currentUser.id} allUsers={allUsers} onCreated={handleRoomCreated} />
             </div>
@@ -148,7 +148,7 @@ export default function ChatPageClient({
               <input
                 value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Tìm phòng..."
-                className="w-full pl-8 pr-3 py-2 text-xs font-bold bg-white/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full pl-8 pr-3 py-2 text-xs font-bold bg-white/60 dark:bg-slate-800/60 border border-slate-200/40 dark:border-slate-700/40 rounded-xl outline-none focus:ring-2 focus:ring-[#7360f2]/20"
               />
             </div>
           </div>
@@ -168,11 +168,11 @@ export default function ChatPageClient({
                       onClick={() => switchRoom(room.id)}
                       className={`w-full flex items-center gap-2.5 px-2.5 py-3 rounded-xl text-left transition-all mb-1 ${
                         isActive
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                          ? "bg-[#7360f2] text-white shadow-md shadow-[#7360f2]/20"
                           : "hover:bg-slate-100/60 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
                       }`}
                     >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${isActive ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"}`}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 ${isActive ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"}`}
                         style={!isActive ? { backgroundColor: room.color + "20" } : {}}>
                         {room.icon}
                       </div>
@@ -201,7 +201,7 @@ export default function ChatPageClient({
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 py-1.5">Khám phá kênh</p>
                 {otherRooms.map(room => (
                   <div key={room.id} className="flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-800/60 mb-1">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 bg-slate-50 dark:bg-slate-800"
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 bg-slate-50 dark:bg-slate-800"
                       style={{ backgroundColor: room.color + "15" }}>
                       {room.icon}
                     </div>
@@ -212,7 +212,7 @@ export default function ChatPageClient({
                     <button
                       onClick={() => handleJoin(room.id)}
                       disabled={isPending}
-                      className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 text-[9px] font-black rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
+                      className="px-2 py-1 bg-[#7360f2]/10 dark:bg-[#7360f2]/20 text-[#7360f2] text-[9px] font-black rounded-lg hover:bg-[#7360f2]/20 transition-colors flex items-center gap-1"
                     >
                       <LogIn size={10} /> Tham gia
                     </button>
@@ -230,8 +230,8 @@ export default function ChatPageClient({
           </div>
 
           {/* Sidebar footer */}
-          <div className="p-3 border-t border-slate-100/60 dark:border-slate-800/60 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[10px] text-white font-black shrink-0">
+          <div className="p-3 border-t border-slate-100/40 dark:border-slate-800/40 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-[#7360f2] to-[#9b8bf7] flex items-center justify-center text-[10px] text-white font-black shrink-0">
               {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" /> : currentUser.name?.substring(0,2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
@@ -255,7 +255,7 @@ export default function ChatPageClient({
                   <ChevronRight className="rotate-180" size={16} strokeWidth={2.5} />
                 </button>
 
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shrink-0"
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0"
                   style={{ backgroundColor: activeRoom.color + "20" }}>
                   {activeRoom.icon}
                 </div>
@@ -268,13 +268,13 @@ export default function ChatPageClient({
                 </div>
                 <div className="hidden lg:flex items-center gap-1">
                   {activeRoom.members.slice(0, 4).map((m: any, i: number) => (
-                    <div key={i} className="w-7 h-7 rounded-xl border-2 border-white dark:border-slate-900 bg-gradient-to-tr from-blue-500 to-indigo-400 flex items-center justify-center text-[9px] text-white font-black -ml-1 first:ml-0 overflow-hidden"
+                    <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-gradient-to-tr from-[#7360f2] to-[#9b8bf7] flex items-center justify-center text-[9px] text-white font-black -ml-1 first:ml-0 overflow-hidden"
                       title={m.user?.name || ""}>
                       {m.user?.avatarUrl ? <img src={m.user.avatarUrl} className="w-full h-full object-cover" alt="" /> : m.user?.name?.substring(0,2).toUpperCase()}
                     </div>
                   ))}
                   {activeRoom.members.length > 4 && (
-                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] text-slate-500 font-black -ml-1">
+                    <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] text-slate-500 font-black -ml-1">
                       +{activeRoom.members.length - 4}
                     </div>
                   )}
@@ -302,7 +302,7 @@ export default function ChatPageClient({
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 opacity-60">
-              <div className="w-20 h-20 rounded-[2rem] bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-4xl">
+              <div className="w-20 h-20 rounded-full bg-[#7360f2]/10 dark:bg-[#7360f2]/20 flex items-center justify-center text-4xl">
                 💬
               </div>
               <div>
