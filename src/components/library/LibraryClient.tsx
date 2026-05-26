@@ -616,18 +616,18 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
             </div>
 
             {/* Viewer Iframe container */}
-            <div className="flex-grow bg-slate-100 dark:bg-slate-950 p-2 relative">
+            <div className="flex-grow bg-slate-100 dark:bg-slate-950 p-2 relative overflow-hidden min-h-0">
               {viewingDoc.type === "PDF" ? (
                 /* PDF specialized displayer */
                 <iframe 
                   src={viewingDoc.url}
-                  className="w-full h-full rounded-2xl border-none"
+                  className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] rounded-2xl border-none bg-white dark:bg-slate-900"
                   title="PDF Viewer"
                 />
               ) : viewingDoc.type === "DOCX" ? (
                 /* DOCX Specialized Displayer. If it's a base64 string, render parsed HTML, otherwise use Office View Link */
                 viewingDoc.url.startsWith("data:") ? (
-                  <div className="w-full h-full overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/10 p-6 md:p-8">
+                  <div className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/10 p-6 md:p-8 scrollbar-thin">
                     {loadingDocx ? (
                       <div className="w-full h-full flex flex-col items-center justify-center min-h-[300px]">
                         <Loader2 className="animate-spin text-[#7360f2] mb-3" size={32} />
@@ -672,13 +672,13 @@ export default function LibraryClient({ initialItems, currentUser }: Props) {
                 ) : (
                   <iframe 
                     src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewingDoc.url)}`}
-                    className="w-full h-full rounded-2xl border-none"
+                    className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] rounded-2xl border-none"
                     title="Office Docx Viewer"
                   />
                 )
               ) : (
                 /* Falling back to plain visual or download option */
-                <div className="w-full h-full flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/10 p-6 text-center">
+                <div className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/10 p-6 text-center">
                   <FileText size={48} className="text-slate-300 mb-3" />
                   <h4 className="font-black text-slate-700 dark:text-slate-300 text-xs uppercase mb-2">Định dạng không được hỗ trợ đọc trực tiếp</h4>
                   <p className="text-[11px] text-slate-400 font-bold max-w-sm mb-4 leading-normal">
