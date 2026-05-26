@@ -139,7 +139,7 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
           base64: base64,
           fileName: file.name,
           mimeType: file.type,
-          taskName: task.title // Truyền thêm tên công việc
+          taskName: localTask.title || task.title || "Công việc không tên" // An toàn hơn khi lấy từ state
         })
       });
 
