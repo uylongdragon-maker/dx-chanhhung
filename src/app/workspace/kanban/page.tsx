@@ -8,11 +8,13 @@ import { Pin } from "lucide-react";
 export default async function KanbanPage() {
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
+  const dbUser = authUser ? await prisma.user.findUnique({ where: { id: authUser.id } }) : null;
 
   const [tasks, users] = await Promise.all([
     prisma.task.findMany({
       include: {
         assignee: true,
+        assignees: true,
         creator: true,
         checklists: { include: { items: true } },
         activities: { include: { user: true }, orderBy: { createdAt: 'desc' } },
@@ -65,7 +67,7 @@ export default async function KanbanPage() {
 
         {/* Board — takes remaining width */}
         <div className="flex-1 min-w-0 overflow-hidden">
-          <KanbanFullBoard tasks={tasks} users={users} currentUser={authUser} />
+          <KanbanFullBoard tasks={tasks} users={users} currentUser={dbUser || authUser} />
         </div>
 
         {/* Pool Reminder Sidebar — fixed width, hidden on small screens */}

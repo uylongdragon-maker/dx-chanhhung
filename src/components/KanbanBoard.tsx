@@ -42,7 +42,10 @@ export default function KanbanBoard({ tasks: inputTasks = [], users = [], curren
 
   const filtered = tasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterAssignee && t.assigneeId !== filterAssignee) return false;
+    if (filterAssignee) {
+      const hasAssignee = t.assigneeId === filterAssignee || (t.assignees && t.assignees.some((u: any) => u.id === filterAssignee));
+      if (!hasAssignee) return false;
+    }
     if (filterPriority && t.priority !== filterPriority) return false;
     return true;
   });
@@ -206,18 +209,42 @@ export default function KanbanBoard({ tasks: inputTasks = [], users = [], curren
                                     )}
                                   </div>
 
-                                  {/* Assignee + watchers */}
+                                  {/* Assignees + watchers */}
                                   <div className="ml-5 flex items-center gap-2">
-                                    {task.assignee ? (
-                                      <div className="w-7 h-7 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-400 border-2 border-white/60 shadow-sm flex items-center justify-center text-[9px] text-white font-black overflow-hidden">
-                                        {task.assignee.avatarUrl ? <img src={task.assignee.avatarUrl} className="w-full h-full object-cover" alt="" /> : task.assignee.name?.substring(0,2).toUpperCase()}
-                                      </div>
-                                    ) : (
-                                      <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                                        <span className="text-[8px] text-slate-400">??</span>
-                                      </div>
-                                    )}
-                                    <span className="text-[10px] font-bold text-slate-500 truncate">{task.assignee?.name || 'Chưa phân công'}</span>
+                                    <div className="flex -space-x-1.5 overflow-hidden hover:space-x-0.5 transition-all duration-300">
+                                      {task.assignees && task.assignees.length > 0 ? (
+                                        task.assignees.map((assignee: any) => (
+                                          <div key={assignee.id} className="w-7 h-7 rounded-md overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0 animate-in fade-in duration-200" title={assignee.name}>
+                                            {assignee.avatarUrl ? (
+                                              <img src={assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                              <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
+                                                {assignee.name?.substring(0, 2).toUpperCase()}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))
+                                      ) : task.assignee ? (
+                                        <div className="w-7 h-7 rounded-md overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0" title={task.assignee.name}>
+                                          {task.assignee.avatarUrl ? (
+                                            <img src={task.assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                          ) : (
+                                            <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
+                                              {task.assignee.name?.substring(0, 2).toUpperCase()}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0">
+                                          <span className="text-[8px] text-slate-400">??</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-500 truncate">
+                                      {task.assignees && task.assignees.length > 0
+                                        ? task.assignees.map((u: any) => u.name?.split(" ").slice(-1)[0]).join(", ")
+                                        : task.assignee?.name || 'Chưa phân công'}
+                                    </span>
                                   </div>
                                 </div>
                               )}

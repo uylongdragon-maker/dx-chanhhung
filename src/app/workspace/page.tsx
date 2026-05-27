@@ -13,6 +13,7 @@ export const revalidate = 30; // Cache for 30s — fast navigation, fresh enough
 export default async function WorkspaceDashboard() {
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
+  const dbUser = authUser ? await prisma.user.findUnique({ where: { id: authUser.id } }) : null;
 
   const now = new Date();
   const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
@@ -30,6 +31,7 @@ export default async function WorkspaceDashboard() {
     prisma.task.findMany({
       include: {
         assignee: { select: { id: true, name: true, avatarUrl: true } },
+        assignees: { select: { id: true, name: true, avatarUrl: true } },
         checklists: { include: { items: true } },
         labels: true,
         activities: { include: { user: { select: { name: true, avatarUrl: true } } }, orderBy: { createdAt: "desc" }, take: 5 },
@@ -142,7 +144,7 @@ export default async function WorkspaceDashboard() {
           </div>
           
           <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl rounded-[2rem] p-4 border border-white/80 dark:border-slate-800/60 shadow-md">
-            <DeadlineTaskBoard tasks={allTasks} users={users} currentUser={authUser} compact={false} />
+            <DeadlineTaskBoard tasks={allTasks} users={users} currentUser={dbUser || authUser} compact={false} />
           </div>
         </div>
 

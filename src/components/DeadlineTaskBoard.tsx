@@ -131,12 +131,17 @@ export default function DeadlineTaskBoard({ tasks, users, currentUser, compact =
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">{task.title}</p>
               <div className="flex items-center gap-2 mt-0.5">
-                {task.assignee && (
+                {task.assignees && task.assignees.length > 0 ? (
+                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                    <User size={9} />
+                    {task.assignees.map((u: any) => u.name?.split(" ").slice(-1)[0]).join(", ")}
+                  </span>
+                ) : task.assignee ? (
                   <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                     <User size={9} />
                     {task.assignee.name?.split(" ").slice(-1)[0]}
                   </span>
-                )}
+                ) : null}
                 {task.dueDate && (
                   <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                     <Clock size={9} />

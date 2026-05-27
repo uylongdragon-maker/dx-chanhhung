@@ -7,10 +7,13 @@ export default async function TablePage() {
   const supabase = await createClient();
   const { data: { user: authUser } } = await supabase.auth.getUser();
 
+  const dbUser = authUser ? await prisma.user.findUnique({ where: { id: authUser.id } }) : null;
+
   const [tasks, users] = await Promise.all([
     prisma.task.findMany({
       include: {
         assignee: true,
+        assignees: true,
         creator: true,
         checklists: { include: { items: true } },
         activities: { include: { user: true }, orderBy: { createdAt: 'desc' } },
@@ -36,7 +39,7 @@ export default async function TablePage() {
 
       {/* ─── Dedicated Spreadsheet View ─── */}
       <div className="flex-grow min-h-0">
-        <TablePageWrapper tasks={tasks} users={users} currentUser={authUser} />
+        <TablePageWrapper tasks={tasks} users={users} currentUser={dbUser || authUser} />
       </div>
     </div>
   );

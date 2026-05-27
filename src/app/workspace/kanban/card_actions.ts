@@ -283,4 +283,36 @@ export async function updateTaskProductType(taskId: string, productType: string)
   }
 }
 
+export async function toggleTaskAssignee(taskId: string, userId: string, assign: boolean) {
+  try {
+    const task = await prisma.task.findUnique({ where: { id: taskId }, include: { assignees: true } });
+    if (!task) return { success: false, error: "Không tìm thấy công việc." };
+
+    const updated = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        assignees: assign 
+          ? { connect: { id: userId } } 
+          : { disconnect: { id: userId } },
+        ...(assign && !task.assigneeId ? { assigneeId: userId } : {}),
+        ...(!assign && task.assigneeId === userId ? { assigneeId: null } : {})
+      },
+      include: { assignees: true }
+    });
+
+    if (updated.status === 'TODO' && updated.assignees.length > 0) {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: 'DOING' }
+      });
+    }
+
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    console.error("Lỗi khi cập nhật phân công:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 

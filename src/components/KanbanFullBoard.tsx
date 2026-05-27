@@ -48,7 +48,10 @@ export default function KanbanFullBoard({
 
   const filtered = tasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterAssignee && t.assigneeId !== filterAssignee) return false;
+    if (filterAssignee) {
+      const hasAssignee = t.assigneeId === filterAssignee || (t.assignees && t.assignees.some((u: any) => u.id === filterAssignee));
+      if (!hasAssignee) return false;
+    }
     if (filterPriority && t.priority !== filterPriority) return false;
     return true;
   });
@@ -314,15 +317,31 @@ export default function KanbanFullBoard({
                                   {/* Assignee + priority */}
                                   <div className="flex items-center gap-1.5">
                                     <div className={`w-1.5 h-1.5 rounded-full ${p.dot}`} title={p.label} />
-                                    <div className="w-7 h-7 rounded-xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm">
-                                      {task.assignee ? (
-                                        task.assignee.avatarUrl
-                                          ? <img src={task.assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
-                                          : <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
+                                    <div className="flex -space-x-2 overflow-hidden hover:space-x-0.5 transition-all duration-300">
+                                      {task.assignees && task.assignees.length > 0 ? (
+                                        task.assignees.map((assignee: any) => (
+                                          <div key={assignee.id} className="w-7 h-7 rounded-xl overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0 animate-in fade-in duration-200" title={assignee.name}>
+                                            {assignee.avatarUrl ? (
+                                              <img src={assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                              <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
+                                                {assignee.name?.substring(0, 2).toUpperCase()}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))
+                                      ) : task.assignee ? (
+                                        <div className="w-7 h-7 rounded-xl overflow-hidden border-2 border-white dark:border-slate-850 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0" title={task.assignee.name}>
+                                          {task.assignee.avatarUrl ? (
+                                            <img src={task.assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                          ) : (
+                                            <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
                                               {task.assignee.name?.substring(0, 2).toUpperCase()}
                                             </div>
+                                          )}
+                                        </div>
                                       ) : (
-                                        <div className="w-full h-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 dark:border-slate-600">
+                                        <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 dark:border-slate-600 shrink-0">
                                           <User size={10} />
                                         </div>
                                       )}

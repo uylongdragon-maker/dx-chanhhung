@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { X, AlignLeft, CheckSquare, Paperclip, Clock, Trash2, Plus, MessageSquare, Send, Calendar, Loader2, Pin, User, Flag, Tag, Eye, Pencil } from "lucide-react";
-import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle } from "@/app/workspace/kanban/card_actions";
+import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle, toggleTaskAssignee } from "@/app/workspace/kanban/card_actions";
 import { deleteTask, togglePoolItem } from "@/app/workspace/kanban/actions";
 import { createClient } from "@/utils/supabase/client";
 import toast from "react-hot-toast";
@@ -32,6 +32,7 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
   const [newComment, setNewComment] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
   const [addingChecklistId, setAddingChecklistId] = useState<string | null>(null);
   const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
@@ -371,22 +372,112 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
             {/* Assignee */}
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><User size={10} /> Người phụ trách</p>
-              <select value={localTask.assigneeId || ""} onChange={e => {
-                const newAssigneeId = e.target.value || null;
-                setLocalTask((prev: any) => ({ ...prev, assigneeId: newAssigneeId }));
-                run(() => updateTaskAssignment(localTask.id, newAssigneeId), "Đã cập nhật người phụ trách");
-              }} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none">
-                <option value="">-- Chưa phân công --</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-
-              {localTask.assigneeId !== currentUser?.id && (
-                <button onClick={() => {
-                  setLocalTask((prev: any) => ({ ...prev, assigneeId: currentUser.id }));
-                  run(() => updateTaskAssignment(localTask.id, currentUser.id), "Đã nhận việc");
-                }} className="w-full mt-2 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
-                  Nhận việc này
+              
+              <div className="relative">
+                <button onClick={() => setShowAssigneePicker(!showAssigneePicker)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-350 hover:border-blue-400 transition-colors">
+                  <span>+ Phân công thành viên</span>
+                  <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded-full font-black text-slate-500">{localTask.assignees?.length || 0}</span>
                 </button>
+                
+                {showAssigneePicker && (
+                  <div className="absolute top-full mt-1.5 left-0 right-0 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 p-2 flex flex-col gap-1">
+                    {users.map(u => {
+                      const isAssigned = localTask.assignees?.some((a: any) => a.id === u.id);
+                      return (
+                        <button
+                          key={u.id}
+                          onClick={() => {
+                            setLocalTask((prev: any) => {
+                              const prevAssignees = prev.assignees || [];
+                              const nextAssignees = isAssigned
+                                ? prevAssignees.filter((a: any) => a.id !== u.id)
+                                : [...prevAssignees, u];
+                              return {
+                                ...prev,
+                                assignees: nextAssignees,
+                                assigneeId: !isAssigned ? (prev.assigneeId || u.id) : (prev.assigneeId === u.id ? (nextAssignees[0]?.id || null) : prev.assigneeId)
+                              };
+                            });
+                            run(() => toggleTaskAssignee(localTask.id, u.id, !isAssigned), isAssigned ? `Đã gỡ ${u.name}` : `Đã giao cho ${u.name}`);
+                          }}
+                          className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-left w-full animate-in fade-in duration-100"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-6 h-6 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
+                              {u.avatarUrl ? (
+                                <img src={u.avatarUrl} className="w-full h-full object-cover" alt="" />
+                              ) : (
+                                <div className="w-full h-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-black">{u.name?.substring(0, 2).toUpperCase()}</div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{u.name}</p>
+                              {u.unit && <p className="text-[8px] text-slate-400 font-bold uppercase truncate">{u.unit}</p>}
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isAssigned || false}
+                            readOnly
+                            className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 pointer-events-none"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Dynamic Join / Leave Action for Logged in User */}
+              {currentUser?.id && (() => {
+                const isUserAssigned = localTask.assignees?.some((a: any) => a.id === currentUser.id);
+                return (
+                  <button 
+                    onClick={() => {
+                      const nextVal = !isUserAssigned;
+                      setLocalTask((prev: any) => {
+                        const prevAssignees = prev.assignees || [];
+                        const nextAssignees = nextVal
+                          ? [...prevAssignees, currentUser]
+                          : prevAssignees.filter((a: any) => a.id !== currentUser.id);
+                        return {
+                          ...prev,
+                          assignees: nextAssignees,
+                          assigneeId: nextVal ? (prev.assigneeId || currentUser.id) : (prev.assigneeId === currentUser.id ? (nextAssignees[0]?.id || null) : prev.assigneeId)
+                        };
+                      });
+                      run(() => toggleTaskAssignee(localTask.id, currentUser.id, nextVal), nextVal ? "Đã tham gia công việc" : "Đã rút khỏi công việc");
+                    }} 
+                    className={`w-full mt-2 py-1.5 font-bold text-xs rounded-lg transition-colors duration-250 active:scale-95 ${
+                      isUserAssigned 
+                        ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-500 border border-rose-200/20 hover:bg-rose-100' 
+                        : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border border-blue-200/20 hover:bg-blue-100'
+                    }`}
+                  >
+                    {isUserAssigned ? "Rút khỏi công việc" : "Nhận việc này"}
+                  </button>
+                );
+              })()}
+
+              {/* Display list of active assignees */}
+              {localTask.assignees && localTask.assignees.length > 0 && (
+                <div className="flex flex-col gap-1.5 mt-2 bg-slate-50/50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/10">
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Đang phụ trách ({localTask.assignees.length})</p>
+                  <div className="flex flex-col gap-2 mt-1">
+                    {localTask.assignees.map((assignee: any) => (
+                      <div key={assignee.id} className="flex items-center gap-2 min-w-0">
+                        <div className="w-5 h-5 rounded-md overflow-hidden shrink-0 bg-slate-100">
+                          {assignee.avatarUrl ? (
+                            <img src={assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">{assignee.name?.substring(0, 2).toUpperCase()}</div>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 truncate">{assignee.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 

@@ -42,6 +42,7 @@ model User {
   poolId    String
   pool      Pool      @relation(fields: [poolId], references: [id])
   tasks     Task[]    @relation("TaskAssignee")
+  assignedTasks Task[] @relation("TaskAssignees")
   messages  Message[] @relation("UserMessages")
   posts     Post[]    @relation("UserPosts")
   media     Media[]   @relation("UserMedia")
@@ -86,6 +87,7 @@ model Task {
   pool        Pool        @relation(fields: [poolId], references: [id])
   assigneeId  String?
   assignee    User?       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignees   User[]      @relation("TaskAssignees")
   
   checklists  Checklist[]
   activities  Activity[]  @relation("TaskActivities")
