@@ -15,6 +15,7 @@ export default function SettingsClient({ user }: { user: any }) {
   const [name, setName] = useState(user?.name || "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
   const [phone, setPhone] = useState(user?.phone || "");
+  const [address, setAddress] = useState(user?.address || "");
   const [unit, setUnit] = useState(user?.unit || "");
   const [position, setPosition] = useState(user?.position || "Thành viên");
   const [roles, setRoles] = useState(user?.roles || "");
@@ -119,6 +120,7 @@ export default function SettingsClient({ user }: { user: any }) {
       formData.append("name", name);
       formData.append("avatarUrl", avatarUrl);
       formData.append("phone", phone);
+      formData.append("address", address);
       formData.append("unit", unit);
       formData.append("position", position);
       formData.append("roles", roles);
@@ -337,6 +339,20 @@ export default function SettingsClient({ user }: { user: any }) {
                         className="w-full pl-14 pr-8 py-5 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white dark:border-slate-700 focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all text-sm font-bold placeholder:text-slate-300 dark:text-white"
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Địa chỉ cá nhân</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                      type="text" 
+                      value={address} 
+                      onChange={e => setAddress(e.target.value)} 
+                      placeholder="Số 123, Đường ABC, Phường XYZ..."
+                      className="w-full pl-14 pr-8 py-5 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white dark:border-slate-700 focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all text-sm font-bold placeholder:text-slate-300 dark:text-white"
+                    />
                   </div>
                 </div>
 

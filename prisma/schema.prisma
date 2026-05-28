@@ -30,6 +30,8 @@ model User {
   status    String    @default("APPROVED") // PENDING, APPROVED, REJECTED
   tempPassword String? // Mật khẩu đăng ký ban đầu để Admin duyệt
   phone               String?
+  address             String?      // Địa chỉ cá nhân
+  isOnboarded         Boolean      @default(false) // Trạng thái đã hoàn thành onboarding
   position            String?      @default("Thành viên") // Chủ nhiệm, Phó Chủ nhiệm, Thành viên, CTV
   roles               String?      // Vai trò truyền thông (VD: Kỹ thuật truyền thông, Sự kiện, Nội dung)
   scoreQuickness      Int          @default(80)

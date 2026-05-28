@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { syncUser } from "@/utils/sync-user";
 import { redirect } from "next/navigation";
 import { prisma } from "@/utils/prisma";
+import OnboardingWizard from "@/components/auth/OnboardingWizard";
 
 export default async function WorkspaceLayout({
   children,
@@ -29,6 +30,11 @@ export default async function WorkspaceLayout({
   if (currentUser && currentUser.status === "REJECTED") {
     await supabase.auth.signOut();
     return redirect("/login?error=Tài khoản của bạn đã bị từ chối phê duyệt.");
+  }
+
+  // Chặn người dùng mới chưa hoàn tất khởi tạo (onboarding)
+  if (currentUser && !currentUser.isOnboarded) {
+    return <OnboardingWizard user={currentUser} />;
   }
 
   // Lấy cấu hình logo hệ thống
