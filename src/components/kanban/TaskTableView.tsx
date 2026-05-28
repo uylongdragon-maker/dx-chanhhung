@@ -83,6 +83,9 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
   // Local state for checklist item assignee picker dropdown
   const [activeItemDropdownId, setActiveItemDropdownId] = useState<string | null>(null);
 
+  // Local state to track active creator picker dropdown
+  const [activeCreatorPickerTaskId, setActiveCreatorPickerTaskId] = useState<string | null>(null);
+
   // Helper function to classify attachment URLs into Images, Videos, and Docs
   const classifyAttachments = (attachments: string[] = []) => {
     const images: string[] = [];
@@ -497,18 +500,72 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
                     </td>
 
                     {/* 5. Người giao */}
-                    <td className="py-3.5 px-3 align-top">
-                      <select 
-                        value={task.creatorId || ""} 
-                        onChange={e => {
-                          const val = e.target.value || null;
-                          handleRun(() => updateTaskCreator(task.id, val), "Đã đổi người giao");
-                        }}
-                        className="w-full bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded p-1 outline-none text-slate-700 dark:text-slate-300 cursor-pointer font-bold"
-                      >
-                        <option value="">-- Chọn --</option>
-                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                      </select>
+                    <td className="py-3.5 px-3 align-top relative">
+                      {(() => {
+                        const selectedCreator = users.find(u => u.id === task.creatorId);
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setActiveCreatorPickerTaskId(activeCreatorPickerTaskId === task.id ? null : task.id)}
+                              className="w-full text-left bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-full px-2.5 py-1 flex items-center justify-between gap-1 text-[11px] font-bold text-slate-700 dark:text-slate-350 min-h-[28px]"
+                            >
+                              {selectedCreator ? (
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm bg-slate-100">
+                                    <img 
+                                      src={selectedCreator.avatarUrl || `https://ui-avatars.com/api/?name=${selectedCreator.name || "User"}&background=7360f2&color=fff`} 
+                                      alt="" 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <span className="truncate max-w-[65px] text-[10px] text-slate-800 dark:text-slate-200">{selectedCreator.name}</span>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-medium italic">Chưa chọn</span>
+                              )}
+                              <ChevronDown size={10} className="text-slate-400 shrink-0" />
+                            </button>
+
+                            {/* Dropdown Menu Popover */}
+                            {activeCreatorPickerTaskId === task.id && (
+                              <>
+                                <div className="fixed inset-0 z-20" onClick={() => setActiveCreatorPickerTaskId(null)}></div>
+                                <div className="absolute top-full mt-1 left-2 right-2 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 p-1 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100" onClick={e => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => {
+                                      handleRun(() => updateTaskCreator(task.id, null), "Đã bỏ người giao");
+                                      setActiveCreatorPickerTaskId(null);
+                                    }}
+                                    className="flex items-center px-2 py-1 text-left hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md text-[10px] font-bold text-slate-400"
+                                  >
+                                    -- Chưa chọn --
+                                  </button>
+                                  {users.map((u: any) => (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => {
+                                        handleRun(() => updateTaskCreator(task.id, u.id), "Đã đổi người giao");
+                                        setActiveCreatorPickerTaskId(null);
+                                      }}
+                                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md text-left w-full"
+                                    >
+                                      <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm bg-slate-100">
+                                        <img 
+                                          src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                          alt="" 
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate">{u.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* 6. Người nhận (Hỗ trợ chọn nhiều thành viên) */}
