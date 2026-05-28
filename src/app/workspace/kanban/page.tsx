@@ -16,7 +16,7 @@ export default async function KanbanPage() {
         assignee: true,
         assignees: true,
         creator: true,
-        checklists: { include: { items: { include: { assignee: true } } } },
+        checklists: { include: { items: { include: { assignees: true } } } },
         activities: { include: { user: true }, orderBy: { createdAt: 'desc' } },
         labels: true,
         watchers: { include: { user: true } },

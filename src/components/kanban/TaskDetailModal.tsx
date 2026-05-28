@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { X, AlignLeft, CheckSquare, Paperclip, Clock, Trash2, Plus, MessageSquare, Send, Calendar, Loader2, Pin, User, Flag, Tag, Eye, Pencil } from "lucide-react";
-import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle, toggleTaskAssignee, assignChecklistItem } from "@/app/workspace/kanban/card_actions";
+import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle, toggleTaskAssignee, toggleChecklistItemAssignee } from "@/app/workspace/kanban/card_actions";
 import { deleteTask, togglePoolItem } from "@/app/workspace/kanban/actions";
 import { createClient } from "@/utils/supabase/client";
 import toast from "react-hot-toast";
@@ -39,6 +39,7 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
   const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
   const [newItemText, setNewItemText] = useState("");
   const [localTask, setLocalTask] = useState(task);
+  const [activeItemDropdownId, setActiveItemDropdownId] = useState<string | null>(null);
   const supabase = createClient();
 
   // Sync localTask when task prop changes from server
@@ -315,50 +316,97 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
                           <span className={`text-sm flex-1 ${item.isCompleted ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>{item.text}</span>
                           
                           {/* Assignee Selection & Avatar */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {item.assignee && (
-                              <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm" title={item.assignee.name || ""}>
-                                <img 
-                                  src={item.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${item.assignee.name || "User"}&background=7360f2&color=fff`} 
-                                  alt="" 
-                                  className="w-full h-full object-cover"
-                                />
+                          <div className="flex items-center gap-1.5 shrink-0 relative">
+                            {/* Danh sách Assignees dưới dạng Google Chip */}
+                            <div className="flex flex-wrap items-center gap-1">
+                              {item.assignees?.map((u: any) => (
+                                <div 
+                                  key={u.id} 
+                                  className="flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/40 shadow-sm text-[10px] font-bold transition-all max-w-[120px] select-none" 
+                                  title={u.name || ""}
+                                >
+                                  <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-white/50">
+                                    <img 
+                                      src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                      alt="" 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <span className="truncate">{u.name?.split(" ").pop()}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Nút cộng thêm người nhận */}
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
+                              }}
+                              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors flex items-center justify-center text-slate-400 hover:text-blue-500"
+                              title="Giao cho thành viên"
+                            >
+                              <Plus size={13} />
+                            </button>
+                            
+                            {activeItemDropdownId === item.id && (
+                              <div 
+                                className="absolute right-0 top-full mt-1.5 w-52 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[90] p-1.5 flex flex-col gap-0.5"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 py-1 border-b border-slate-100 dark:border-slate-800 mb-1">Giao việc cho:</p>
+                                {users.map((u: any) => {
+                                  const isAssigned = item.assignees?.some((a: any) => a.id === u.id) || false;
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      onClick={async () => {
+                                        // Update locally
+                                        setLocalTask((prev: any) => ({
+                                          ...prev,
+                                          checklists: prev.checklists.map((c: any) =>
+                                            c.id === cl.id
+                                              ? {
+                                                  ...c,
+                                                  items: c.items.map((i: any) =>
+                                                    i.id === item.id 
+                                                      ? { 
+                                                          ...i, 
+                                                          assignees: isAssigned
+                                                            ? (i.assignees || []).filter((a: any) => a.id !== u.id)
+                                                            : [...(i.assignees || []), u]
+                                                        } 
+                                                      : i
+                                                  ),
+                                                }
+                                              : c
+                                          ),
+                                        }));
+                                        run(() => toggleChecklistItemAssignee(item.id, u.id, !isAssigned));
+                                      }}
+                                      className="flex items-center justify-between px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors text-left w-full"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 bg-slate-100 border border-slate-200/50">
+                                          <img 
+                                            src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                            alt="" 
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{u.name}</span>
+                                      </div>
+                                      <input
+                                        type="checkbox"
+                                        checked={isAssigned}
+                                        readOnly
+                                        className="w-3.5 h-3.5 text-blue-600 rounded border-slate-350 pointer-events-none focus:ring-0"
+                                      />
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
-                            <select
-                              value={item.assigneeId || ""}
-                              onChange={async (e) => {
-                                const newAssigneeId = e.target.value || null;
-                                setLocalTask((prev: any) => ({
-                                  ...prev,
-                                  checklists: prev.checklists.map((c: any) =>
-                                    c.id === cl.id
-                                      ? {
-                                          ...c,
-                                          items: c.items.map((i: any) =>
-                                            i.id === item.id 
-                                              ? { 
-                                                  ...i, 
-                                                  assigneeId: newAssigneeId, 
-                                                  assignee: users.find(u => u.id === newAssigneeId) || null 
-                                                } 
-                                              : i
-                                          ),
-                                        }
-                                      : c
-                                  ),
-                                }));
-                                run(() => assignChecklistItem(item.id, newAssigneeId));
-                              }}
-                              className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-500 cursor-pointer rounded px-1.5 py-0.5 max-w-[100px] font-bold"
-                            >
-                              <option value="">Giao việc...</option>
-                              {users.map((u: any) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.name}
-                                </option>
-                              ))}
-                            </select>
                           </div>
 
                           <button onClick={() => run(() => deleteChecklistItem(item.id))} className="opacity-0 group-hover:opacity-100 text-slate-350 hover:text-rose-500 transition-all shrink-0">

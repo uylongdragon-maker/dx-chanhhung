@@ -119,18 +119,22 @@ export async function deleteChecklistItem(itemId: string) {
   }
 }
 
-export async function assignChecklistItem(itemId: string, assigneeId: string | null) {
+export async function toggleChecklistItemAssignee(itemId: string, userId: string, assign: boolean) {
   try {
     await requireAuth();
     await prisma.checklistItem.update({
       where: { id: itemId },
-      data: { assigneeId }
+      data: {
+        assignees: assign 
+          ? { connect: { id: userId } } 
+          : { disconnect: { id: userId } }
+      }
     });
     revalidate();
     return { success: true };
   } catch (error: any) {
     if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
-    console.error("[assignChecklistItem]", error);
+    console.error("[toggleChecklistItemAssignee]", error);
     return { success: false, error: "Đã xảy ra lỗi." };
   }
 }

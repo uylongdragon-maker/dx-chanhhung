@@ -32,7 +32,7 @@ export default async function WorkspaceDashboard() {
       include: {
         assignee: { select: { id: true, name: true, avatarUrl: true } },
         assignees: { select: { id: true, name: true, avatarUrl: true } },
-        checklists: { include: { items: { include: { assignee: true } } } },
+        checklists: { include: { items: { include: { assignees: true } } } },
         labels: true,
         activities: { include: { user: { select: { name: true, avatarUrl: true } } }, orderBy: { createdAt: "desc" }, take: 5 },
         watchers: { include: { user: { select: { name: true } } } },

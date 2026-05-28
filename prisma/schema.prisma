@@ -57,7 +57,7 @@ model User {
   createdEvents MeetingEvent[] @relation("EventCreator")
   eventAttendances MeetingAttendee[] @relation("EventAttendees")
   createdTasks Task[]    @relation("TaskCreator")
-  checklistItems ChecklistItem[] @relation("ChecklistItemAssignee")
+  checklistItems ChecklistItem[] @relation("ChecklistItemAssignees")
 }
 
 // 3. Bảng quản lý thẻ việc Kanban (Trello Card Style — v2)
@@ -133,8 +133,7 @@ model ChecklistItem {
   isCompleted Boolean   @default(false)
   checklistId String
   checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  assigneeId  String?
-  assignee    User?     @relation("ChecklistItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignees   User[]    @relation("ChecklistItemAssignees")
 }
 
 model Activity {

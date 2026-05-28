@@ -26,7 +26,7 @@ import {
   updateTaskPriority, 
   addTaskAttachment,
   deleteChecklistItem,
-  assignChecklistItem,
+  toggleChecklistItemAssignee,
   toggleTaskAssignee
 } from "@/app/workspace/kanban/card_actions";
 import { 
@@ -79,6 +79,9 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
 
   // Local state to track active assignee picker dropdown
   const [activeAssigneePickerTaskId, setActiveAssigneePickerTaskId] = useState<string | null>(null);
+
+  // Local state for checklist item assignee picker dropdown
+  const [activeItemDropdownId, setActiveItemDropdownId] = useState<string | null>(null);
 
   // Helper function to classify attachment URLs into Images, Videos, and Docs
   const classifyAttachments = (attachments: string[] = []) => {
@@ -371,31 +374,80 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
                                 </div>
 
                                 {/* Checklist item assignee select & avatar circle */}
-                                <div className="flex items-center gap-1 shrink-0">
-                                  {item.assignee && (
-                                    <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm animate-in zoom-in duration-200" title={item.assignee.name || ""}>
-                                      <img 
-                                        src={item.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${item.assignee.name || "User"}&background=7360f2&color=fff`} 
-                                        alt="" 
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                  )}
-                                  <select
-                                    value={item.assigneeId || ""}
-                                    onChange={(e) => {
-                                      const newAssigneeId = e.target.value || null;
-                                      handleRun(() => assignChecklistItem(item.id, newAssigneeId), "Đã phân công việc");
-                                    }}
-                                    className="text-[9px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-400 dark:text-slate-500 cursor-pointer rounded px-1 max-w-[80px] font-bold"
-                                  >
-                                    <option value="">Giao...</option>
-                                    {users.map((u: any) => (
-                                      <option key={u.id} value={u.id}>
-                                        {u.name}
-                                      </option>
+                                <div className="flex items-center gap-1 shrink-0 relative">
+                                  {/* Google Chips for Checklist Item Assignees */}
+                                  <div className="flex flex-wrap items-center gap-0.5 max-w-[80px]">
+                                    {item.assignees?.map((u: any) => (
+                                      <div 
+                                        key={u.id} 
+                                        className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm" 
+                                        title={u.name || ""}
+                                      >
+                                        <img 
+                                          src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                          alt="" 
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
                                     ))}
-                                  </select>
+                                  </div>
+
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
+                                    }}
+                                    className="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors flex items-center justify-center text-slate-400 hover:text-blue-500"
+                                    title="Giao cho thành viên"
+                                  >
+                                    <Plus size={11} />
+                                  </button>
+
+                                  {activeItemDropdownId === item.id && (
+                                    <>
+                                      <div className="fixed inset-0 z-[60]" onClick={() => setActiveItemDropdownId(null)}></div>
+                                      <div 
+                                        className="absolute right-0 top-full mt-1 w-48 max-h-40 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[70] p-1 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+                                        onClick={e => e.stopPropagation()}
+                                      >
+                                        <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 py-0.5 border-b border-slate-100 dark:border-slate-800 mb-1">Giao việc cho:</p>
+                                        {users.map((u: any) => {
+                                          const isAssigned = item.assignees?.some((a: any) => a.id === u.id) || false;
+                                          return (
+                                            <button
+                                              key={u.id}
+                                              type="button"
+                                              onClick={() => {
+                                                handleRun(
+                                                  () => toggleChecklistItemAssignee(item.id, u.id, !isAssigned),
+                                                  isAssigned ? `Đã gỡ ${u.name}` : `Đã giao cho ${u.name}`
+                                                );
+                                              }}
+                                              className="flex items-center justify-between px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors text-left w-full"
+                                            >
+                                              <div className="flex items-center gap-1.5 min-w-0">
+                                                <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200">
+                                                  <img 
+                                                    src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                                    alt="" 
+                                                    className="w-full h-full object-cover"
+                                                  />
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate">{u.name}</span>
+                                              </div>
+                                              <input
+                                                type="checkbox"
+                                                checked={isAssigned}
+                                                readOnly
+                                                className="w-3 h-3 text-blue-600 rounded border-slate-350 pointer-events-none focus:ring-0 shrink-0"
+                                              />
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </>
+                                  )}
+
                                   <button 
                                     onClick={() => handleRun(() => deleteChecklistItem(item.id), "Đã xoá đầu việc")}
                                     className="text-slate-300 hover:text-rose-500 opacity-0 group-hover/item:opacity-100 transition-opacity font-bold ml-1"
