@@ -97,8 +97,92 @@ export async function deleteMember(targetUserId: string) {
         if (authError) console.error("Supabase Auth Delete Error (handled):", authError);
     }
     
-    // Xóa user khỏi cơ sở dữ liệu Prisma
-    await prisma.user.delete({ where: { id: targetUserId } });
+    // Xóa user khỏi cơ sở dữ liệu Prisma cùng với tất cả các ràng buộc dữ liệu liên quan
+    await prisma.$transaction(async (tx) => {
+      // 1. Disconnect khỏi assignedTasks (many-to-many relation)
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          assignedTasks: {
+            set: []
+          }
+        }
+      });
+
+      // 2. Bỏ gán khỏi các tasks đang làm người nhận chính
+      await tx.task.updateMany({
+        where: { assigneeId: targetUserId },
+        data: { assigneeId: null }
+      });
+
+      // 3. Chuyển quyền sở hữu các tasks đã tạo sang Admin hiện tại
+      await tx.task.updateMany({
+        where: { creatorId: targetUserId },
+        data: { creatorId: admin.id }
+      });
+
+      // 4. Chuyển quyền sở hữu các cuộc họp đã tạo sang Admin hiện tại
+      await tx.meetingEvent.updateMany({
+        where: { createdById: targetUserId },
+        data: { createdById: admin.id }
+      });
+
+      // 5. Chuyển quyền sở hữu các phòng chat đã tạo sang Admin hiện tại
+      await tx.chatRoom.updateMany({
+        where: { createdById: targetUserId },
+        data: { createdById: admin.id }
+      });
+
+      // 6. Xóa các lượt tham gia sự kiện lịch họp
+      await tx.meetingAttendee.deleteMany({
+        where: { userId: targetUserId }
+      });
+
+      // 7. Xóa các thành viên phòng chat liên quan
+      await tx.chatRoomMember.deleteMany({
+        where: { userId: targetUserId }
+      });
+
+      // 8. Xóa các lượt biểu quyết
+      await tx.vote.deleteMany({
+        where: { userId: targetUserId }
+      });
+
+      // 9. Xóa các lượt theo dõi thẻ việc
+      await tx.taskWatcher.deleteMany({
+        where: { userId: targetUserId }
+      });
+
+      // 10. Xóa lịch sử hoạt động
+      await tx.activity.deleteMany({
+        where: { userId: targetUserId }
+      });
+
+      // 11. Xóa tin nhắn đã gửi
+      await tx.message.deleteMany({
+        where: { senderId: targetUserId }
+      });
+
+      // 12. Xóa các bài viết đăng
+      await tx.post.deleteMany({
+        where: { authorId: targetUserId }
+      });
+
+      // 13. Xóa các media đã tải lên
+      await tx.media.deleteMany({
+        where: { uploaderId: targetUserId }
+      });
+
+      // 14. Xóa yêu cầu phòng họp
+      await tx.meetingRequest.deleteMany({
+        where: { requestedBy: targetUserId }
+      });
+
+      // 15. Cuối cùng, xóa User khỏi hệ thống
+      await tx.user.delete({
+        where: { id: targetUserId }
+      });
+    });
     
     revalidatePath("/workspace/admin");
     return { success: true };
