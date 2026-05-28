@@ -15,7 +15,7 @@ export default async function TablePage() {
         assignee: true,
         assignees: true,
         creator: true,
-        checklists: { include: { items: true } },
+        checklists: { include: { items: { include: { assignee: true } } } },
         activities: { include: { user: true }, orderBy: { createdAt: 'desc' } },
         labels: true,
         watchers: { include: { user: true } },

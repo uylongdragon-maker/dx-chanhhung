@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { X, AlignLeft, CheckSquare, Paperclip, Clock, Trash2, Plus, MessageSquare, Send, Calendar, Loader2, Pin, User, Flag, Tag, Eye, Pencil } from "lucide-react";
-import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle, toggleTaskAssignee } from "@/app/workspace/kanban/card_actions";
+import { updateTaskDescription, addChecklist, addChecklistItem, toggleChecklistItem, addTaskActivity, updateTaskDueDate, updateTaskAssignment, updateTaskPriority, addTaskAttachment, addTaskLabel, removeTaskLabel, deleteChecklistItem, deleteChecklist, updateChecklistTitle, toggleTaskAssignee, assignChecklistItem } from "@/app/workspace/kanban/card_actions";
 import { deleteTask, togglePoolItem } from "@/app/workspace/kanban/actions";
 import { createClient } from "@/utils/supabase/client";
 import toast from "react-hot-toast";
@@ -313,7 +313,55 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
                         <div key={item.id} className="flex items-center gap-3 group">
                           <input type="checkbox" checked={item.isCompleted} onChange={e => handleToggleItem(cl.id, item.id, e.target.checked)} className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 cursor-pointer" />
                           <span className={`text-sm flex-1 ${item.isCompleted ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>{item.text}</span>
-                          <button onClick={() => run(() => deleteChecklistItem(item.id))} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all">
+                          
+                          {/* Assignee Selection & Avatar */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {item.assignee && (
+                              <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm" title={item.assignee.name || ""}>
+                                <img 
+                                  src={item.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${item.assignee.name || "User"}&background=7360f2&color=fff`} 
+                                  alt="" 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <select
+                              value={item.assigneeId || ""}
+                              onChange={async (e) => {
+                                const newAssigneeId = e.target.value || null;
+                                setLocalTask((prev: any) => ({
+                                  ...prev,
+                                  checklists: prev.checklists.map((c: any) =>
+                                    c.id === cl.id
+                                      ? {
+                                          ...c,
+                                          items: c.items.map((i: any) =>
+                                            i.id === item.id 
+                                              ? { 
+                                                  ...i, 
+                                                  assigneeId: newAssigneeId, 
+                                                  assignee: users.find(u => u.id === newAssigneeId) || null 
+                                                } 
+                                              : i
+                                          ),
+                                        }
+                                      : c
+                                  ),
+                                }));
+                                run(() => assignChecklistItem(item.id, newAssigneeId));
+                              }}
+                              className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-500 cursor-pointer rounded px-1.5 py-0.5 max-w-[100px] font-bold"
+                            >
+                              <option value="">Giao việc...</option>
+                              {users.map((u: any) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <button onClick={() => run(() => deleteChecklistItem(item.id))} className="opacity-0 group-hover:opacity-100 text-slate-350 hover:text-rose-500 transition-all shrink-0">
                             <Trash2 size={12} />
                           </button>
                         </div>

@@ -25,7 +25,9 @@ import {
   updateTaskAssignment, 
   updateTaskPriority, 
   addTaskAttachment,
-  deleteChecklistItem
+  deleteChecklistItem,
+  assignChecklistItem,
+  toggleTaskAssignee
 } from "@/app/workspace/kanban/card_actions";
 import { 
   updateTaskCreator, 
@@ -74,6 +76,9 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
 
   // Local state for inline checklist additions
   const [newItemText, setNewItemText] = useState<Record<string, string>>({});
+
+  // Local state to track active assignee picker dropdown
+  const [activeAssigneePickerTaskId, setActiveAssigneePickerTaskId] = useState<string | null>(null);
 
   // Helper function to classify attachment URLs into Images, Videos, and Docs
   const classifyAttachments = (attachments: string[] = []) => {
@@ -350,24 +355,54 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
                         {task.checklists?.map((cl: any) => (
                           <div key={cl.id} className="flex flex-col gap-1.5">
                             {cl.items?.map((item: any) => (
-                              <div key={item.id} className="flex items-start gap-2 group/item">
-                                <input 
-                                  type="checkbox" 
-                                  checked={item.isCompleted} 
-                                  onChange={e => {
-                                    handleRun(() => toggleChecklistItem(item.id, e.target.checked));
-                                  }}
-                                  className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 cursor-pointer mt-0.5" 
-                                />
-                                <span className={`text-[11px] leading-tight flex-grow font-medium ${item.isCompleted ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"}`}>
-                                  {item.text}
-                                </span>
-                                <button 
-                                  onClick={() => handleRun(() => deleteChecklistItem(item.id), "Đã xoá đầu việc")}
-                                  className="text-slate-300 hover:text-rose-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                                >
-                                  ×
-                                </button>
+                              <div key={item.id} className="flex items-center gap-2 group/item justify-between w-full">
+                                <div className="flex items-start gap-2 flex-grow min-w-0">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={item.isCompleted} 
+                                    onChange={e => {
+                                      handleRun(() => toggleChecklistItem(item.id, e.target.checked));
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 cursor-pointer mt-0.5 shrink-0" 
+                                  />
+                                  <span className={`text-[11px] leading-tight font-medium break-words ${item.isCompleted ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"}`}>
+                                    {item.text}
+                                  </span>
+                                </div>
+
+                                {/* Checklist item assignee select & avatar circle */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {item.assignee && (
+                                    <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm animate-in zoom-in duration-200" title={item.assignee.name || ""}>
+                                      <img 
+                                        src={item.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${item.assignee.name || "User"}&background=7360f2&color=fff`} 
+                                        alt="" 
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                  <select
+                                    value={item.assigneeId || ""}
+                                    onChange={(e) => {
+                                      const newAssigneeId = e.target.value || null;
+                                      handleRun(() => assignChecklistItem(item.id, newAssigneeId), "Đã phân công việc");
+                                    }}
+                                    className="text-[9px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-400 dark:text-slate-500 cursor-pointer rounded px-1 max-w-[80px] font-bold"
+                                  >
+                                    <option value="">Giao...</option>
+                                    {users.map((u: any) => (
+                                      <option key={u.id} value={u.id}>
+                                        {u.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button 
+                                    onClick={() => handleRun(() => deleteChecklistItem(item.id), "Đã xoá đầu việc")}
+                                    className="text-slate-300 hover:text-rose-500 opacity-0 group-hover/item:opacity-100 transition-opacity font-bold ml-1"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -413,19 +448,77 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
                       </select>
                     </td>
 
-                    {/* 6. Người nhận */}
-                    <td className="py-3.5 px-3 align-top">
-                      <select 
-                        value={task.assigneeId || ""} 
-                        onChange={e => {
-                          const val = e.target.value || null;
-                          handleRun(() => updateTaskAssignment(task.id, val), "Đã đổi người nhận");
-                        }}
-                        className="w-full bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded p-1 outline-none text-slate-700 dark:text-slate-300 cursor-pointer font-bold"
-                      >
-                        <option value="">-- Chưa nhận --</option>
-                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                      </select>
+                    {/* 6. Người nhận (Hỗ trợ chọn nhiều thành viên) */}
+                    <td className="py-3.5 px-3 align-top relative">
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveAssigneePickerTaskId(activeAssigneePickerTaskId === task.id ? null : task.id)}
+                          className="w-full text-left bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-350 min-h-[36px]"
+                        >
+                          <div className="flex flex-wrap gap-1 items-center max-w-[130px]">
+                            {task.assignees && task.assignees.length > 0 ? (
+                              task.assignees.map((assignee: any) => (
+                                <div key={assignee.id} className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm" title={assignee.name || ""}>
+                                  <img 
+                                    src={assignee.avatarUrl || `https://ui-avatars.com/api/?name=${assignee.name || "User"}&background=7360f2&color=fff`} 
+                                    alt="" 
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-slate-400 italic font-medium">Chưa giao</span>
+                            )}
+                          </div>
+                          <ChevronDown size={12} className="text-slate-400 shrink-0" />
+                        </button>
+
+                        {/* Multi-Assignee Dropdown Popover */}
+                        {activeAssigneePickerTaskId === task.id && (
+                          <>
+                            {/* Backdrop overlay to click outside to close */}
+                            <div className="fixed inset-0 z-25" onClick={() => setActiveAssigneePickerTaskId(null)}></div>
+                            
+                            <div className="absolute top-full mt-1 left-3 right-3 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-30 p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-2 py-1 border-b border-slate-100 dark:border-slate-800 mb-1">Giao việc ({task.assignees?.length || 0})</p>
+                              {users.map((u: any) => {
+                                const isAssigned = task.assignees?.some((a: any) => a.id === u.id);
+                                return (
+                                  <button
+                                    key={u.id}
+                                    type="button"
+                                    onClick={() => {
+                                      handleRun(
+                                        () => toggleTaskAssignee(task.id, u.id, !isAssigned),
+                                        isAssigned ? `Đã gỡ ${u.name}` : `Đã giao cho ${u.name}`
+                                      );
+                                    }}
+                                    className="flex items-center justify-between px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors text-left w-full"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-200">
+                                        <img 
+                                          src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                          alt="" 
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">{u.name}</span>
+                                    </div>
+                                    <input
+                                      type="checkbox"
+                                      checked={isAssigned || false}
+                                      readOnly
+                                      className="w-3 h-3 text-blue-600 rounded border-slate-350 pointer-events-none shrink-0"
+                                    />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </td>
 
                     {/* 7. Trạng thái */}

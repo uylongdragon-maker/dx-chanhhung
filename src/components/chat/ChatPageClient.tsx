@@ -123,7 +123,7 @@ export default function ChatPageClient({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] gap-0 animate-in fade-in duration-500">
+    <div className="flex flex-col h-[calc(100vh-12.5rem)] md:h-[calc(100vh-6rem)] gap-0 animate-in fade-in duration-500">
       {/* Page Header - Mobile only */}
       <div className="flex items-center justify-between mb-4 md:hidden">
         <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -287,7 +287,7 @@ export default function ChatPageClient({
                   <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
                 </div>
               ) : (
-                <div className="flex-1">
+                <div className="flex-1 flex flex-col min-h-0 h-full">
                   <RoomChatWindow
                     key={activeRoom.id}
                     messages={messages}

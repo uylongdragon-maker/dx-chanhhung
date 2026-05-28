@@ -119,6 +119,22 @@ export async function deleteChecklistItem(itemId: string) {
   }
 }
 
+export async function assignChecklistItem(itemId: string, assigneeId: string | null) {
+  try {
+    await requireAuth();
+    await prisma.checklistItem.update({
+      where: { id: itemId },
+      data: { assigneeId }
+    });
+    revalidate();
+    return { success: true };
+  } catch (error: any) {
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[assignChecklistItem]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
+  }
+}
+
 export async function deleteChecklist(checklistId: string) {
   try {
     await requireAuth();
