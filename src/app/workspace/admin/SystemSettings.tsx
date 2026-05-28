@@ -35,7 +35,7 @@ export default function SystemSettings({ currentGeminiKey, currentAppLogo, admin
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
       startLogoTransition(async () => {
-        const res = await updateAppLogo(adminId, base64);
+        const res = await updateAppLogo(base64); // Server lấy adminId từ session
         if (res.success) {
           setAppLogo(base64);
           alert("Đã cập nhật Logo ứng dụng mới thành công!");
@@ -51,7 +51,7 @@ export default function SystemSettings({ currentGeminiKey, currentAppLogo, admin
     if (!geminiKey) return;
     
     startTransition(async () => {
-      const result = await updateGeminiKey(adminId, geminiKey);
+      const result = await updateGeminiKey(geminiKey); // Server lấy adminId từ session
       if (result.success) {
         alert("Đã cập nhật Gemini API Key mới!");
       } else {

@@ -16,7 +16,7 @@ export default function MemberTable({ users, currentAdminId }: MemberTableProps)
     if (!confirm(`Xác nhận đổi quyền của thành viên này thành ${newRole}?`)) return;
 
     startTransition(async () => {
-      const result = await updateMemberRole(currentAdminId, userId, newRole);
+      const result = await updateMemberRole(userId, newRole); // Server lấy adminId từ session
       if (!result.success) {
         alert("Lỗi khi cập nhật quyền: " + (result as any).message || "Đã có lỗi xảy ra");
       }
@@ -27,13 +27,13 @@ export default function MemberTable({ users, currentAdminId }: MemberTableProps)
     const newPassword = prompt(`Nhập mật khẩu mới cho ${userName || "thành viên này"}:`);
     if (!newPassword) return;
 
-    if (newPassword.length < 6) {
-      alert("Mật khẩu phải có ít nhất 6 ký tự!");
+    if (newPassword.length < 8) {
+      alert("Mật khẩu phải có ít nhất 8 ký tự!");
       return;
     }
 
     startTransition(async () => {
-      const result = await changeUserPassword(currentAdminId, userId, newPassword);
+      const result = await changeUserPassword(userId, newPassword); // Server lấy adminId từ session
       if (result.success) {
         alert("Đã đổi mật khẩu thành công!");
       } else {
@@ -53,7 +53,7 @@ export default function MemberTable({ users, currentAdminId }: MemberTableProps)
     }
 
     startTransition(async () => {
-      const result = await deleteMember(currentAdminId, userId);
+      const result = await deleteMember(userId); // Server lấy adminId từ session
       if (!result.success) {
         alert(result.message);
       }

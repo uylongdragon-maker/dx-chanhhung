@@ -2,6 +2,15 @@
 
 import { prisma } from "@/utils/prisma";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/utils/supabase/server";
+
+// Auth guard helper — throws if not authenticated
+async function requireAuth() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  return user;
+}
 
 function revalidate() {
   revalidatePath("/workspace/kanban");
@@ -10,41 +19,54 @@ function revalidate() {
 
 export async function updateTaskDescription(taskId: string, description: string) {
   try {
+    await requireAuth();
     await prisma.task.update({ where: { id: taskId }, data: { description } });
     revalidate();
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[updateTaskDescription]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 
 export async function updateTaskTitle(taskId: string, title: string) {
   try {
-    await prisma.task.update({ where: { id: taskId }, data: { title } });
+    await requireAuth();
+    if (!title.trim()) return { success: false, error: "Tiêu đề không được để trống" };
+    await prisma.task.update({ where: { id: taskId }, data: { title: title.trim().substring(0, 500) } });
     revalidate();
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[updateTaskTitle]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 
 export async function addChecklist(taskId: string, title: string) {
   try {
-    const checklist = await prisma.checklist.create({ data: { taskId, title } });
+    await requireAuth();
+    const checklist = await prisma.checklist.create({ data: { taskId, title: title.substring(0, 200) } });
     revalidate();
     return { success: true, data: checklist };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[addChecklist]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 
 export async function addChecklistItem(checklistId: string, text: string) {
   try {
-    const item = await prisma.checklistItem.create({ data: { checklistId, text } });
+    await requireAuth();
+    const item = await prisma.checklistItem.create({ data: { checklistId, text: text.substring(0, 500) } });
     revalidate();
     return { success: true, data: item };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[addChecklistItem]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 
@@ -86,31 +108,40 @@ export async function toggleChecklistItem(itemId: string, isCompleted: boolean) 
 
 export async function deleteChecklistItem(itemId: string) {
   try {
+    await requireAuth();
     await prisma.checklistItem.delete({ where: { id: itemId } });
     revalidate();
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[deleteChecklistItem]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 
 export async function deleteChecklist(checklistId: string) {
   try {
+    await requireAuth();
     await prisma.checklist.delete({ where: { id: checklistId } });
     revalidate();
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[deleteChecklist]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 
 export async function updateChecklistTitle(checklistId: string, title: string) {
   try {
-    await prisma.checklist.update({ where: { id: checklistId }, data: { title } });
+    await requireAuth();
+    await prisma.checklist.update({ where: { id: checklistId }, data: { title: title.substring(0, 200) } });
     revalidate();
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    if (error.message === "Unauthorized") return { success: false, error: "Unauthorized" };
+    console.error("[updateChecklistTitle]", error);
+    return { success: false, error: "Đã xảy ra lỗi." };
   }
 }
 

@@ -6,6 +6,10 @@ import { createClient } from "@/utils/supabase/server";
 
 export async function updateTaskStatus(taskId: string, newStatus: string) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
     const data: any = { status: newStatus }
     if (newStatus === 'DONE') data.completedAt = new Date()
     else data.completedAt = null
@@ -15,7 +19,8 @@ export async function updateTaskStatus(taskId: string, newStatus: string) {
     revalidatePath("/workspace");
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("[updateTaskStatus]", error);
+    return { success: false, error: "Đã xảy ra lỗi. Vui lòng thử lại." };
   }
 }
 
@@ -60,6 +65,13 @@ export async function createTask(formData: FormData) {
 
 export async function updateTaskStatusAndOrder(taskId: string, newStatus: string, newIndex: number) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    // Validate newStatus
+    if (!['TODO', 'DOING', 'DONE'].includes(newStatus)) return { success: false, error: "Invalid status" };
+
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) return { success: false, error: "Task not found" };
 
@@ -86,15 +98,19 @@ export async function updateTaskStatusAndOrder(taskId: string, newStatus: string
     revalidatePath("/workspace");
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("[updateTaskStatusAndOrder]", error);
+    return { success: false, error: "Đã xảy ra lỗi. Vui lòng thử lại." };
   }
 }
 
 export async function createInlineTask(title: string, status: string) {
   if (!title.trim()) return { success: false };
+  // Validate status
+  if (!['TODO', 'DOING', 'DONE'].includes(status)) return { success: false };
   try {
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
 
     let pool = await prisma.pool.findFirst();
     if (!pool) {
@@ -103,12 +119,12 @@ export async function createInlineTask(title: string, status: string) {
 
     await prisma.task.create({
       data: {
-        title,
+        title: title.trim().substring(0, 500), // Limit title length
         status,
         priority: 'MEDIUM',
         poolId: pool.id,
         order: 0,
-        creatorId: authUser?.id || null,
+        creatorId: authUser.id,
       }
     });
 
@@ -116,28 +132,39 @@ export async function createInlineTask(title: string, status: string) {
     revalidatePath('/workspace');
     return { success: true };
   } catch (error: any) {
+    console.error("[createInlineTask]", error);
     return { success: false };
   }
 }
 
 export async function deleteTask(taskId: string) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
     await prisma.task.delete({ where: { id: taskId } });
     revalidatePath('/workspace/kanban');
     revalidatePath('/workspace');
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("[deleteTask]", error);
+    return { success: false, error: "Đã xảy ra lỗi. Vui lòng thử lại." };
   }
 }
 
 export async function togglePoolItem(taskId: string, isPoolItem: boolean) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
     await prisma.task.update({ where: { id: taskId }, data: { isPoolItem } });
     revalidatePath('/workspace/kanban');
     revalidatePath('/workspace');
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("[togglePoolItem]", error);
+    return { success: false, error: "Đã xảy ra lỗi. Vui lòng thử lại." };
   }
 }

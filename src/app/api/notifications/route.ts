@@ -1,10 +1,16 @@
 import { prisma } from "@/utils/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/utils/supabase/server";
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return NextResponse.json({ newMessages: [], newTasks: [], upcomingMeetings: [], overdueTasks: [] });
+  // [SECURITY] Verify session — không tin userId từ query param
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
+  const userId = user.id; // Lấy từ session, không từ query string
   const sinceParam = req.nextUrl.searchParams.get("since");
   const now = new Date();
   const sinceDate = sinceParam ? new Date(sinceParam) : new Date(now.getTime() - 2 * 60_000);

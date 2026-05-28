@@ -17,7 +17,7 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
 
   const handleApprove = async (targetId: string) => {
     setApproving({ ...approving, [targetId]: true });
-    const res = await approveUser(currentAdminId, targetId);
+    const res = await approveUser(targetId); // Server lấy adminId từ session
     if (res.success) {
       alert("Đã phê duyệt thành viên!");
       window.location.reload();
@@ -30,7 +30,7 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
   const handleReject = async (targetId: string) => {
     if (!confirm("Bạn có chắc chắn muốn TỪ CHỐI và XOÁ tài khoản đăng ký này? Thao tác này sẽ xoá sạch tài khoản khỏi hệ thống.")) return;
     setRejecting({ ...rejecting, [targetId]: true });
-    const res = await deleteMember(currentAdminId, targetId);
+    const res = await deleteMember(targetId); // Server lấy adminId từ session
     if (res.success) {
       alert("Đã từ chối và xoá tài khoản đăng ký!");
       window.location.reload();
@@ -46,13 +46,13 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
 
   const handleResetPassword = async (targetId: string, userName: string) => {
     const newPass = passwords[targetId];
-    if (!newPass || newPass.length < 6) {
-      setStatus({ ...status, [targetId]: { type: "error", msg: "Mật khẩu phải từ 6 ký tự!" } });
+    if (!newPass || newPass.length < 8) {
+      setStatus({ ...status, [targetId]: { type: "error", msg: "Mật khẩu phải từ 8 ký tự, bao gồm chữ và số!" } });
       return;
     }
 
     setStatus({ ...status, [targetId]: { type: "loading", msg: "Đang xử lý..." } });
-    const res = await forceChangePassword(currentAdminId, targetId, newPass);
+    const res = await forceChangePassword(targetId, newPass); // Server lấy adminId từ session
     
     setStatus({ 
       ...status, 
@@ -109,18 +109,11 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
 
                 <div className="flex flex-wrap items-center gap-6 flex-1 xl:max-w-2xl justify-end">
                   {/* Mật khẩu đã đăng ký */}
-                  <div className="bg-slate-950 border border-slate-800 rounded-[1.5rem] px-6 py-4 flex items-center gap-4 min-w-[200px]">
-                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">Mật khẩu:</div>
-                    <div className="font-mono text-sm font-bold text-slate-200 select-all flex-1">
-                      {visiblePasswords[user.id] ? (user.tempPassword || "Chưa có") : "••••••••"}
+                    <div className="bg-slate-950 border border-slate-800 rounded-[1.5rem] px-6 py-4 flex items-center gap-4 min-w-[200px]">
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">Trạng thái:</div>
+                    <div className="font-mono text-sm font-bold text-emerald-400">
+                      Đã được phê duyệt
                     </div>
-                    <button 
-                      onClick={() => togglePasswordVisibility(user.id)}
-                      className="text-slate-500 hover:text-slate-300 transition-colors"
-                      title={visiblePasswords[user.id] ? "Ẩn" : "Hiện"}
-                    >
-                      {visiblePasswords[user.id] ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -259,7 +252,7 @@ export default function AdminSecurityTab({ users, currentAdminId }: { users: any
                 <button 
                     onClick={async () => {
                     if(!apiKey) return;
-                    const res = await updateSystemKey(currentAdminId, apiKey);
+                    const res = await updateSystemKey(apiKey); // Server lấy adminId từ session
                     if(res.success) {
                         setApiKey("");
                         alert("Đã cập nhật MASTER API Key thành công!");
