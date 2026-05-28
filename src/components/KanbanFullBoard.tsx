@@ -319,21 +319,28 @@ export default function KanbanFullBoard({
                                   {/* Assignee + priority */}
                                   <div className="flex items-center gap-1.5">
                                     <div className={`w-1.5 h-1.5 rounded-full ${p.dot}`} title={p.label} />
-                                    <div className="flex -space-x-2 overflow-hidden hover:space-x-0.5 transition-all duration-300">
+                                    <div className="flex -space-x-1.5 overflow-hidden hover:space-x-0.5 transition-all duration-300 items-center">
                                       {task.assignees && task.assignees.length > 0 ? (
-                                        task.assignees.map((assignee: any) => (
-                                          <div key={assignee.id} className="w-7 h-7 rounded-xl overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0 animate-in fade-in duration-200" title={assignee.name}>
-                                            {assignee.avatarUrl ? (
-                                              <img src={assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
-                                            ) : (
-                                              <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
-                                                {assignee.name?.substring(0, 2).toUpperCase()}
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))
+                                        <>
+                                          {task.assignees.slice(0, 3).map((assignee: any) => (
+                                            <div key={assignee.id} className="w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0 animate-in fade-in duration-200" title={assignee.name}>
+                                              {assignee.avatarUrl ? (
+                                                <img src={assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                              ) : (
+                                                <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-400 flex items-center justify-center text-[8px] text-white font-black">
+                                                  {assignee.name?.substring(0, 2).toUpperCase()}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                          {task.assignees.length > 3 && (
+                                            <div className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[8px] font-black text-slate-500 shrink-0 shadow-sm z-10" title={task.assignees.slice(3).map((u: any) => u.name).join(", ")}>
+                                              +{task.assignees.length - 3}
+                                            </div>
+                                          )}
+                                        </>
                                       ) : task.assignee ? (
-                                        <div className="w-7 h-7 rounded-xl overflow-hidden border-2 border-white dark:border-slate-850 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0" title={task.assignee.name}>
+                                        <div className="w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-slate-850 shadow-sm bg-slate-100 dark:bg-slate-700 shrink-0" title={task.assignee.name}>
                                           {task.assignee.avatarUrl ? (
                                             <img src={task.assignee.avatarUrl} className="w-full h-full object-cover" alt="" />
                                           ) : (
@@ -343,8 +350,8 @@ export default function KanbanFullBoard({
                                           )}
                                         </div>
                                       ) : (
-                                        <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 dark:border-slate-600 shrink-0">
-                                          <User size={10} />
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 shrink-0">
+                                          <User size={8} />
                                         </div>
                                       )}
                                     </div>

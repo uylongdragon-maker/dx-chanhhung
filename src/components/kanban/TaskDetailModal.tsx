@@ -315,39 +315,46 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
                           <input type="checkbox" checked={item.isCompleted} onChange={e => handleToggleItem(cl.id, item.id, e.target.checked)} className="w-4 h-4 rounded border-2 border-slate-300 text-blue-600 cursor-pointer" />
                           <span className={`text-sm flex-1 ${item.isCompleted ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>{item.text}</span>
                           
-                          {/* Assignee Selection & Avatar */}
-                          <div className="flex items-center gap-1.5 shrink-0 relative">
-                            {/* Danh sách Assignees dưới dạng Google Chip */}
-                            <div className="flex flex-wrap items-center gap-1">
-                              {item.assignees?.map((u: any) => (
-                                <div 
-                                  key={u.id} 
-                                  className="flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/40 shadow-sm text-[10px] font-bold transition-all max-w-[120px] select-none" 
-                                  title={u.name || ""}
-                                >
-                                  <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-white/50">
-                                    <img 
-                                      src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
-                                      alt="" 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  <span className="truncate">{u.name?.split(" ").pop()}</span>
+                          {/* Assignee Selection & Avatar - Google Chip Capsule */}
+                          <div className="shrink-0 relative">
+                            {item.assignees && item.assignees.length > 0 ? (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
+                                }}
+                                className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border border-blue-500 bg-blue-500/5 hover:bg-blue-500/10 dark:border-blue-400 text-blue-600 dark:text-blue-400 text-[10px] font-black transition-all select-none"
+                                title={item.assignees.map((u: any) => u.name).join(", ")}
+                              >
+                                <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-white dark:border-slate-800 shadow-sm bg-slate-100">
+                                  <img 
+                                    src={item.assignees[0].avatarUrl || `https://ui-avatars.com/api/?name=${item.assignees[0].name || "User"}&background=3b82f6&color=fff`} 
+                                    alt="" 
+                                    className="w-full h-full object-cover"
+                                  />
                                 </div>
-                              ))}
-                            </div>
-
-                            {/* Nút cộng thêm người nhận */}
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
-                              }}
-                              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors flex items-center justify-center text-slate-400 hover:text-blue-500"
-                              title="Giao cho thành viên"
-                            >
-                              <Plus size={13} />
-                            </button>
+                                <span className="truncate max-w-[70px]">
+                                  {item.assignees[0].name?.split(" ").pop()}
+                                </span>
+                                {item.assignees.length > 1 && (
+                                  <span className="text-[8px] font-black opacity-80">
+                                    +{item.assignees.length - 1}
+                                  </span>
+                                )}
+                                <span className="text-[8px] opacity-75 ml-0.5">▼</span>
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 hover:text-blue-500 text-[9px] font-bold text-slate-400 transition-colors"
+                              >
+                                <Plus size={10} />
+                                <span>Giao việc</span>
+                              </button>
+                            )}
                             
                             {activeItemDropdownId === item.id && (
                               <div 

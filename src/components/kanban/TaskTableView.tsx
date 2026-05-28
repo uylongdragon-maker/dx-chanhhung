@@ -373,35 +373,46 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
                                   </span>
                                 </div>
 
-                                {/* Checklist item assignee select & avatar circle */}
-                                <div className="flex items-center gap-1 shrink-0 relative">
-                                  {/* Google Chips for Checklist Item Assignees */}
-                                  <div className="flex flex-wrap items-center gap-0.5 max-w-[80px]">
-                                    {item.assignees?.map((u: any) => (
-                                      <div 
-                                        key={u.id} 
-                                        className="w-4 h-4 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm" 
-                                        title={u.name || ""}
-                                      >
+                                {/* Checklist item assignee select & avatar circle - Google Chip Capsule */}
+                                <div className="shrink-0 relative">
+                                  {item.assignees && item.assignees.length > 0 ? (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
+                                      }}
+                                      className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full border border-blue-500 bg-blue-500/5 hover:bg-blue-500/10 dark:border-blue-400 text-blue-600 dark:text-blue-400 text-[9px] font-black transition-all select-none"
+                                      title={item.assignees.map((u: any) => u.name).join(", ")}
+                                    >
+                                      <div className="w-3.5 h-3.5 rounded-full overflow-hidden shrink-0 border border-white dark:border-slate-800 shadow-sm bg-slate-100">
                                         <img 
-                                          src={u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || "User"}&background=7360f2&color=fff`} 
+                                          src={item.assignees[0].avatarUrl || `https://ui-avatars.com/api/?name=${item.assignees[0].name || "User"}&background=3b82f6&color=fff`} 
                                           alt="" 
                                           className="w-full h-full object-cover"
                                         />
                                       </div>
-                                    ))}
-                                  </div>
-
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
-                                    }}
-                                    className="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors flex items-center justify-center text-slate-400 hover:text-blue-500"
-                                    title="Giao cho thành viên"
-                                  >
-                                    <Plus size={11} />
-                                  </button>
+                                      <span className="truncate max-w-[50px]">
+                                        {item.assignees[0].name?.split(" ").pop()}
+                                      </span>
+                                      {item.assignees.length > 1 && (
+                                        <span className="text-[7px] font-black opacity-80">
+                                          +{item.assignees.length - 1}
+                                        </span>
+                                      )}
+                                      <span className="text-[7px] opacity-75 ml-0.5">▼</span>
+                                    </button>
+                                  ) : (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveItemDropdownId(activeItemDropdownId === item.id ? null : item.id);
+                                      }}
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-slate-350 dark:border-slate-700 hover:border-blue-400 hover:text-blue-500 text-[8px] font-bold text-slate-400 transition-colors"
+                                    >
+                                      <Plus size={8} />
+                                      <span>Giao việc</span>
+                                    </button>
+                                  )}
 
                                   {activeItemDropdownId === item.id && (
                                     <>
@@ -508,17 +519,24 @@ export default function TaskTableView({ tasks = [], users = [], currentUser, onS
                           onClick={() => setActiveAssigneePickerTaskId(activeAssigneePickerTaskId === task.id ? null : task.id)}
                           className="w-full text-left bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-350 min-h-[36px]"
                         >
-                          <div className="flex flex-wrap gap-1 items-center max-w-[130px]">
+                          <div className="flex -space-x-1.5 overflow-hidden items-center max-w-[130px]">
                             {task.assignees && task.assignees.length > 0 ? (
-                              task.assignees.map((assignee: any) => (
-                                <div key={assignee.id} className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm" title={assignee.name || ""}>
-                                  <img 
-                                    src={assignee.avatarUrl || `https://ui-avatars.com/api/?name=${assignee.name || "User"}&background=7360f2&color=fff`} 
-                                    alt="" 
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ))
+                              <>
+                                {task.assignees.slice(0, 3).map((assignee: any) => (
+                                  <div key={assignee.id} className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-white dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-700" title={assignee.name || ""}>
+                                    <img 
+                                      src={assignee.avatarUrl || `https://ui-avatars.com/api/?name=${assignee.name || "User"}&background=3b82f6&color=fff`} 
+                                      alt="" 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                                {task.assignees.length > 3 && (
+                                  <div className="w-5 h-5 rounded-full border border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[8px] font-black text-slate-500 shrink-0 shadow-sm z-10" title={task.assignees.slice(3).map((u: any) => u.name).join(", ")}>
+                                    +{task.assignees.length - 3}
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <span className="text-[10px] text-slate-400 italic font-medium">Chưa giao</span>
                             )}
