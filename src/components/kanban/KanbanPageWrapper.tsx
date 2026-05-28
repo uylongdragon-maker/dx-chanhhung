@@ -27,7 +27,7 @@ export default function KanbanPageWrapper({ tasks = [], users = [], currentUser 
   const poolCount = tasks.filter(t => t.isPoolItem && t.status !== "DONE").length;
 
   return (
-    <div className="flex flex-col h-full min-h-screen">
+    <div className="flex flex-col">
       {/* ─── Stats Bar ─── */}
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -73,7 +73,7 @@ export default function KanbanPageWrapper({ tasks = [], users = [], currentUser 
       </div>
 
       {/* ─── Active View Render ─── */}
-      <div className="flex-grow min-h-0">
+      <div>
         {activeTab === "table" ? (
           /* Spreadsheet style Table View */
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -89,9 +89,9 @@ export default function KanbanPageWrapper({ tasks = [], users = [], currentUser 
           </div>
         ) : (
           /* Kanban Board and sidebar */
-          <div className="flex gap-6 h-full flex-grow min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Board — takes remaining width */}
-            <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* Board — takes remaining width, allow horizontal scroll */}
+            <div className="flex-1 min-w-0">
               <KanbanFullBoard tasks={tasks} users={users} currentUser={currentUser} />
             </div>
 

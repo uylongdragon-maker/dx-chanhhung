@@ -98,9 +98,9 @@ export default function KanbanFullBoard({
         {/* Filter toggle */}
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all border ${showFilters || activeFilters > 0
-            ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20'
-            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all duration-200 border active:scale-95 ${showFilters || activeFilters > 0
+            ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20 hover:bg-blue-700'
+            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400 hover:text-blue-600'
           }`}
         >
           <SlidersHorizontal size={14} />
@@ -167,13 +167,13 @@ export default function KanbanFullBoard({
 
       {/* Kanban Board — horizontal scroll */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-5 overflow-x-auto pb-6 items-start" style={{ minHeight: 'calc(100vh - 260px)' }}>
+        <div className="flex gap-5 overflow-x-auto pb-6 items-start min-h-[500px]">
           {COLUMNS.map(col => {
             const Icon = col.icon;
             const colTasks = filtered.filter(t => t.status === col.status).sort((a, b) => (a.order || 0) - (b.order || 0));
 
             return (
-              <div key={col.status} className="flex flex-col gap-0 shrink-0 w-[300px] sm:w-[320px]">
+              <div key={col.status} className="flex flex-col gap-0 shrink-0 w-[300px] sm:w-[320px] transition-all">
                 {/* Column Header */}
                 <div className={`flex items-center justify-between px-4 py-3 rounded-t-2xl border border-b-0 ${col.header} ${col.border}`}>
                   <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default function KanbanFullBoard({
                       {colTasks.length}
                     </span>
                   </div>
-                  <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200 hover:bg-white/60 dark:hover:bg-slate-800/60 rounded-lg p-1 -mr-1 active:scale-90">
                     <MoreHorizontal size={16} />
                   </button>
                 </div>
@@ -194,15 +194,17 @@ export default function KanbanFullBoard({
                     <div
                       {...provided.droppableProps}
                       ref={provided.innerRef}
-                      className={`flex flex-col gap-2.5 p-3 min-h-[200px] rounded-b-2xl border transition-colors duration-150 ${col.border} ${snapshot.isDraggingOver
-                        ? 'bg-blue-50/80 dark:bg-blue-900/20'
+                      className={`flex flex-col gap-2.5 p-3 rounded-b-2xl border transition-all duration-200 ${col.border} ${snapshot.isDraggingOver
+                        ? 'bg-blue-50/80 dark:bg-blue-900/20 ring-2 ring-blue-400/30 ring-inset'
                         : 'bg-slate-50/80 dark:bg-slate-900/60'
                       } backdrop-blur-sm`}
+                      style={{ minHeight: colTasks.length === 0 ? '160px' : undefined }}
                     >
-                      {colTasks.length === 0 && !snapshot.isDraggingOver && (
-                        <div className="flex flex-col items-center justify-center py-10 text-slate-300 dark:text-slate-700">
-                          <Icon size={28} strokeWidth={1.5} />
-                          <p className="text-[10px] font-black uppercase tracking-widest mt-2">Trống</p>
+                      {colTasks.length === 0 && (
+                        <div className={`flex flex-col items-center justify-center py-10 transition-all duration-300 ${snapshot.isDraggingOver ? 'opacity-40 scale-95' : 'opacity-100'} text-slate-300 dark:text-slate-600`}>
+                          <Icon size={32} strokeWidth={1} className="mb-2" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Trống</p>
+                          <p className="text-[9px] text-slate-200 dark:text-slate-700 mt-0.5">Kéo thẻ vào đây</p>
                         </div>
                       )}
 

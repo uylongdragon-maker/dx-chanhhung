@@ -35,7 +35,7 @@ export default async function KanbanPage() {
   const poolCount = tasks.filter(t => t.isPoolItem && t.status !== 'DONE').length;
 
   return (
-    <div className="flex flex-col h-full min-h-screen">
+    <div className="flex flex-col">
 
       {/* ─── Page Header ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
@@ -63,17 +63,17 @@ export default async function KanbanPage() {
       </div>
 
       {/* ─── Two-column layout: Board + Pool sidebar ─── */}
-      <div className="flex gap-6 flex-1 min-h-0">
+      <div className="flex gap-6">
 
-        {/* Board — takes remaining width */}
-        <div className="flex-1 min-w-0 overflow-hidden">
+        {/* Board — takes remaining width, allow horizontal scroll for kanban columns */}
+        <div className="flex-1 min-w-0">
           <KanbanFullBoard tasks={tasks} users={users} currentUser={dbUser || authUser} />
         </div>
 
         {/* Pool Reminder Sidebar — fixed width, hidden on small screens */}
         {poolCount > 0 && (
           <div className="hidden xl:flex flex-col w-72 shrink-0">
-            <div className="sticky top-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/80 dark:border-slate-700/60 rounded-[1.75rem] p-4 shadow-md">
+            <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/80 dark:border-slate-700/60 rounded-[1.75rem] p-4 shadow-md">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
                   <Pin size={13} className="text-blue-500" /> Pool Nhắc Nhở
