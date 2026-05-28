@@ -47,16 +47,38 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
   const run = (fn: () => Promise<any>, successMsg?: string) => {
     startTransition(async () => {
       const res = await fn();
-      if (res?.success === false) toast.error(res.error || "Có lỗi xảy ra");
+      if (res?.success === false) {
+        const errorMsg = res.error === "Unauthorized"
+          ? "Phiên đăng nhập hết hạn. Vui lòng tải lại trang."
+          : (res.error || "Có lỗi xảy ra");
+        toast.error(errorMsg);
+      }
       else if (successMsg) toast.success(successMsg);
     });
   };
 
   const handleSaveDesc = () => run(async () => { const r = await updateTaskDescription(task.id, description); setIsEditDesc(false); return r; }, "Đã lưu mô tả");
 
+  // Optimistic priority change
+  const handlePriorityChange = (value: string) => {
+    setLocalTask((prev: any) => ({ ...prev, priority: value }));
+    run(() => updateTaskPriority(task.id, value));
+  };
+
   const handleAddChecklist = () => {
     if (!newChecklistTitle.trim()) return;
-    run(async () => { const r = await addChecklist(task.id, newChecklistTitle); setNewChecklistTitle(""); return r; }, "Đã thêm checklist");
+    const title = newChecklistTitle.trim();
+    // Optimistic update: thêm checklist giả ngay lập tức
+    const tempId = `temp-cl-${Date.now()}`;
+    setLocalTask((prev: any) => ({
+      ...prev,
+      checklists: [...(prev.checklists || []), { id: tempId, title, items: [] }]
+    }));
+    setNewChecklistTitle("");
+    run(async () => {
+      const r = await addChecklist(task.id, title);
+      return r;
+    }, "Đã thêm checklist");
   };
 
   const handleAddItem = (checklistId: string) => {
@@ -181,7 +203,7 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
     setShowLabelPicker(false);
   };
 
-  const pDef = PRIORITIES.find(p => p.value === task.priority) || PRIORITIES[1];
+  const pDef = PRIORITIES.find(p => p.value === localTask.priority) || PRIORITIES[1];
   const checkTotal = localTask.checklists?.reduce((a: number, cl: any) => a + (cl.items?.length || 0), 0) || 0;
   const checkDone  = localTask.checklists?.reduce((a: number, cl: any) => a + (cl.items?.filter((i: any) => i.isCompleted).length || 0), 0) || 0;
 
@@ -310,8 +332,22 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
                 ))}
 
                 <div className="flex gap-2">
-                  <input value={newChecklistTitle} onChange={e => setNewChecklistTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddChecklist()} className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-blue-400 transition-colors" placeholder="+ Thêm checklist mới..." />
-                  {newChecklistTitle && <button onClick={handleAddChecklist} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg">Tạo</button>}
+                  <input
+                    value={newChecklistTitle}
+                    onChange={e => setNewChecklistTitle(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddChecklist()}
+                    className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-blue-400 transition-colors"
+                    placeholder="+ Thêm checklist mới..."
+                    disabled={isPending}
+                  />
+                  <button
+                    onClick={handleAddChecklist}
+                    disabled={!newChecklistTitle.trim() || isPending}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                    Tạo
+                  </button>
                 </div>
               </div>
             </section>
@@ -362,7 +398,17 @@ export default function TaskDetailModal({ task, users, currentUser, onClose }: {
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Flag size={10} /> Độ ưu tiên</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {PRIORITIES.map(p => (
-                  <button key={p.value} onClick={() => run(() => updateTaskPriority(task.id, p.value))} className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${task.priority === p.value ? p.cls + ' scale-[1.03] shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:scale-[1.02]'}`}>
+                  <button
+                    key={p.value}
+                    onClick={() => handlePriorityChange(p.value)}
+                    disabled={isPending}
+                    className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                      localTask.priority === p.value
+                        ? p.cls + ' scale-[1.03] shadow-md ring-2 ring-offset-1 ring-current/30'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:scale-[1.02] hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95'
+                    } disabled:opacity-60 disabled:cursor-wait`}
+                  >
+                    {isPending && localTask.priority === p.value && <Loader2 size={8} className="animate-spin" />}
                     {p.label}
                   </button>
                 ))}
